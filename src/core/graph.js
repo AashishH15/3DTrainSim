@@ -2,6 +2,19 @@ import { TRACK_TYPES } from "./config.js";
 
 export const edgeKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
+/** Trains currently moving along this track segment. */
+export function trainsOnEdge(state, mapKey, edgeId) {
+  if (!state.maps[mapKey]?.edges[edgeId]) return [];
+  const out = [];
+  for (const train of Object.values(state.trains)) {
+    if (train.map !== mapKey || train.state !== "run" || !train.path?.length) continue;
+    const a = train.path[train.seg];
+    const b = train.path[train.seg + 1];
+    if (a && b && edgeKey(a, b) === edgeId) out.push(train);
+  }
+  return out;
+}
+
 export function nodeDist(na, nb) {
   return Math.hypot(na.x - nb.x, na.z - nb.z);
 }

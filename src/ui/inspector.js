@@ -1,5 +1,6 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt } from "../core/config.js";
 import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund } from "../core/economy.js";
+import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
 
 export class Inspector {
@@ -101,12 +102,33 @@ export class Inspector {
     }
     actions.push(`<button class="btn danger" data-act="remove">${icon("bulldoze")} Demolish, refund ${fmtMoney(bulldozeRefund(mapKey, edge))}</button>`);
 
+    const onTrack = trainsOnEdge(s, mapKey, edgeId);
+    const trainList = onTrack.length
+      ? onTrack.map((train) => {
+          const tier = TIERS[train.tier];
+          const load = train.passengers.reduce((a, x) => a + x.count, 0);
+          const along = edge.length > 0 ? Math.round((train.prog / edge.length) * 100) : 0;
+          return `<button class="btn quiet train-pick" data-train="${train.id}">
+            ${icon(`tier${train.tier}`)} Train #${train.num}
+            <span class="train-pick-meta">${load}/${tier.capacity} · ${along}% along</span>
+          </button>`;
+        }).join("")
+      : `<div class="train-pick-empty">No trains on this segment right now</div>`;
+
     this.open(`
       <h3>Track segment</h3>
       <div class="sub">${tt.name}</div>
       ${rows.map(([k, v]) => `<div class="row"><span class="k">${k}</span><span>${v}</span></div>`).join("")}
+      <div class="train-list">
+        <div class="train-list-label">Trains on this track</div>
+        ${trainList}
+      </div>
       <div class="actions">${actions.join("")}</div>
     `);
+
+    this.el.querySelectorAll("[data-train]").forEach((b) =>
+      b.addEventListener("click", () => g.inspectTrain(b.dataset.train))
+    );
 
     this.el.querySelectorAll("[data-up]").forEach((b) =>
       b.addEventListener("click", () => g.upgradeEdge(edgeId, +b.dataset.up))

@@ -136,6 +136,14 @@ body {
 .inspector .row span:last-child { text-align: right; }
 .inspector .actions { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.8rem; }
 .inspector .actions .btn { width: 100%; }
+.inspector .train-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.75rem; }
+.inspector .train-list-label { font-size: 0.72rem; color: var(--ink-3); font-weight: 600; }
+.inspector .train-pick {
+  width: 100%; justify-content: flex-start; gap: 0.45rem;
+  font-size: 0.8rem; padding: 0.45rem 0.65rem;
+}
+.inspector .train-pick-meta { margin-left: auto; font-size: 0.72rem; color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+.inspector .train-pick-empty { font-size: 0.78rem; color: var(--ink-3); padding: 0.2rem 0; }
 .inspector .close {
   position: absolute; top: 0.6rem; right: 0.6rem;
   background: none; border: none; color: var(--ink-3); cursor: pointer;
@@ -274,11 +282,15 @@ body {
   .toolbar {
     left: 0; right: 0; top: auto; bottom: 0; transform: none;
     width: auto; max-width: none;
-    flex-direction: row; flex-wrap: nowrap; overflow-x: auto;
+    flex-direction: row; flex-wrap: nowrap; justify-content: center;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: var(--r-md) var(--r-md) 0 0;
     border-bottom: none;
-    padding: 0.35rem 0.4rem max(0.4rem, env(safe-area-inset-bottom));
+    padding:
+      0.35rem max(0.4rem, env(safe-area-inset-right))
+      max(0.4rem, env(safe-area-inset-bottom))
+      max(0.4rem, env(safe-area-inset-left));
     gap: 0.28rem;
     scroll-snap-type: x proximity;
   }
