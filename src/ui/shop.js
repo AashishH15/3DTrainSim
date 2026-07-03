@@ -89,8 +89,8 @@ export function openIntro(game, { firstRun = false } = {}) {
         </div>
       </div>
       <div class="controls-hint">
-        <b>Drag</b> to orbit · <b>Scroll / pinch</b> to zoom · <b>Right-click / Cancel</b> backs out ·
-        <b>Space</b> pauses · <b>1-6</b> select tools · <b>M</b> switches map
+        <b>Drag</b> to orbit · <b>Move tool (0)</b> drag-pans without Ctrl · <b>Scroll / pinch</b> zoom ·
+        <b>Right-click / Cancel</b> backs out · <b>Space</b> pauses
       </div>
       <div class="modal-footer">
         <button class="btn primary" data-close>${firstRun ? "Start building" : "Got it"}</button>

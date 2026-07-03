@@ -66,6 +66,7 @@ export class Game {
     this.bindInput();
 
     this.activeBundle.controls.enabled = true;
+    this.applyCameraBindings(this.mode);
     this.updateHint();
 
     // Preview line for track drawing / route highlighting.
@@ -176,6 +177,7 @@ export class Game {
     this.bundles[this.state.currentMap].controls.enabled = false;
     this.state.currentMap = mapKey;
     this.activeBundle.controls.enabled = true;
+    this.applyCameraBindings(this.mode);
     this.hud.renderToolbar();
     this.updateHint();
     emit("toast", { msg: mapKey === "usa" ? "National network" : "New York City network" });
@@ -184,8 +186,31 @@ export class Game {
   setMode(mode) {
     this.mode = mode;
     this.cancelTransient(false);
+    this.applyCameraBindings(mode);
     this.hud.syncToolbar();
     this.updateHint();
+  }
+
+  applyCameraBindings(mode) {
+    for (const b of Object.values(this.bundles)) {
+      const ctrl = b.controls;
+      if (mode === "pan") {
+        ctrl.mouseButtons = {
+          LEFT: THREE.MOUSE.PAN,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.ROTATE,
+        };
+        ctrl.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+      } else {
+        ctrl.mouseButtons = {
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        };
+        ctrl.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+      }
+    }
+    this.renderer.domElement.style.cursor = mode === "pan" ? "grab" : "";
   }
 
   cancelTransient(resetMode = true) {
@@ -383,6 +408,7 @@ export class Game {
       if (e.pointerType === "touch") this.touchPointers++;
       downPos = [e.clientX, e.clientY];
       downPointer = e.pointerId;
+      if (this.mode === "pan") this.renderer.domElement.style.cursor = "grabbing";
     });
     el.addEventListener("pointerup", (e) => {
       if (e.pointerType === "touch") this.touchPointers = Math.max(0, this.touchPointers - 1);
@@ -391,9 +417,11 @@ export class Game {
       const moved = Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]);
       downPos = null;
       downPointer = null;
+      if (this.mode === "pan") this.renderer.domElement.style.cursor = "grab";
       if (moved > slack) return;
       if (this.touchPointers > 0) return;
       if (e.button === 2) { this.onRightClick(); return; }
+      if (this.mode === "pan") return;
       this.onClick(e);
     });
     el.addEventListener("pointercancel", (e) => {
@@ -415,7 +443,7 @@ export class Game {
         e.preventDefault();
         this.state.speed = this.state.speed === 0 ? 1 : 0;
       }
-      const modeKeys = { 1: "select", 2: "station", 3: "track1", 4: "track2", 5: "track3", 6: "bulldoze" };
+      const modeKeys = { 0: "pan", 1: "select", 2: "station", 3: "track1", 4: "track2", 5: "track3", 6: "bulldoze" };
       if (modeKeys[e.key]) this.setMode(modeKeys[e.key]);
       if (e.key === "b" || e.key === "B") this.openShop();
       if (e.key === "m" || e.key === "M") this.toggleMap();
@@ -605,11 +633,13 @@ export class Game {
 
   updateHint() {
     const mode = this.mode;
-    if (mode === "select") {
+    if (mode === "pan") {
+      this.bindHintActions(`${icon("pan")} <b>Move mode:</b> drag to pan the map · pinch or scroll to zoom · right-drag to rotate`);
+    } else if (mode === "select") {
       const next = this.nextStepHint();
       const touchTip = isMobileExperience()
-        ? " · <b>One finger</b> drag to orbit, pinch to zoom"
-        : "";
+        ? " · use <b>Move</b> to drag the map"
+        : " · press <b>0</b> or pick <b>Move</b> to drag-pan without Ctrl";
       this.bindHintActions(
         next ?? `${icon("select")} Tap any <b>stop</b>, <b>track</b> or <b>train</b> to inspect${touchTip}`
       );

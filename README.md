@@ -44,6 +44,7 @@ Then open the printed local URL (default http://localhost:5173).
 | Input | Action |
 |---|---|
 | Drag / scroll | Orbit / zoom the camera |
+| `0` | Move / pan map |
 | `1`-`6` | Select tools (select, station, tracks, bulldoze) |
 | `B` | Train shop |
 | `M` | Switch between USA and NYC maps |

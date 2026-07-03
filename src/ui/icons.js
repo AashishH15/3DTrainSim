@@ -1,4 +1,5 @@
 // Phosphor Icons (MIT license, https://phosphoricons.com) imported as raw SVG.
+import handGrabbing from "@phosphor-icons/core/assets/bold/hand-grabbing-bold.svg?raw";
 import cursor from "@phosphor-icons/core/assets/bold/cursor-bold.svg?raw";
 import bank from "@phosphor-icons/core/assets/bold/bank-bold.svg?raw";
 import eraser from "@phosphor-icons/core/assets/bold/eraser-bold.svg?raw";
@@ -22,6 +23,7 @@ import usersThree from "@phosphor-icons/core/assets/bold/users-three-bold.svg?ra
 
 const SVGS = {
   select: cursor,
+  pan: handGrabbing,
   station: bank,
   bulldoze: eraser,
   tier1: tram,

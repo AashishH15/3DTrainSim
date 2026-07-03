@@ -62,6 +62,7 @@ export class Hud {
     const perUnit = (n) => fmtMoney(t(n).costPerUnit[mapKey]);
     this.toolbar.innerHTML = `
       <div class="section">Tools</div>
+      <button class="btn tool" data-mode="pan" title="Drag to move the map">${icon("pan")}<span class="tool-label"> Move</span> <span class="key">0</span></button>
       <button class="btn tool" data-mode="select" title="Inspect stops, track and trains">${icon("select")}<span class="tool-label"> Select</span> <span class="key">1</span></button>
       <button class="btn tool" data-mode="station" title="Build a station at a stop">${icon("station")}<span class="tool-label"> Station</span> <span class="key">2</span></button>
       <div class="section">Track</div>
