@@ -62,15 +62,15 @@ export class Hud {
     const perUnit = (n) => fmtMoney(t(n).costPerUnit[mapKey]);
     this.toolbar.innerHTML = `
       <div class="section">Tools</div>
-      <button class="btn tool" data-mode="select" title="Inspect stops, track and trains">${icon("select")} Select <span class="key">1</span></button>
-      <button class="btn tool" data-mode="station" title="Build a station at a stop">${icon("station")} Station <span class="key">2</span></button>
+      <button class="btn tool" data-mode="select" title="Inspect stops, track and trains">${icon("select")}<span class="tool-label"> Select</span> <span class="key">1</span></button>
+      <button class="btn tool" data-mode="station" title="Build a station at a stop">${icon("station")}<span class="tool-label"> Station</span> <span class="key">2</span></button>
       <div class="section">Track</div>
-      <button class="btn tool" data-mode="track1" title="Tier I trains only"><span class="swatch" style="background:${hex(t(1).color)}"></span>Standard <span class="price">${perUnit(1)}/u</span><span class="key">3</span></button>
-      <button class="btn tool" data-mode="track2" title="Tier I and II trains"><span class="swatch" style="background:${hex(t(2).color)}"></span>High-Speed <span class="price">${perUnit(2)}/u</span><span class="key">4</span></button>
-      <button class="btn tool" data-mode="track3" title="Tier III maglev only"><span class="swatch" style="background:${hex(t(3).color)}"></span>Maglev <span class="price">${perUnit(3)}/u</span><span class="key">5</span></button>
+      <button class="btn tool" data-mode="track1" title="Tier I trains only"><span class="swatch" style="background:${hex(t(1).color)}"></span><span class="tool-label"> Standard</span> <span class="price">${perUnit(1)}/u</span><span class="key">3</span></button>
+      <button class="btn tool" data-mode="track2" title="Tier I and II trains"><span class="swatch" style="background:${hex(t(2).color)}"></span><span class="tool-label"> High-Speed</span> <span class="price">${perUnit(2)}/u</span><span class="key">4</span></button>
+      <button class="btn tool" data-mode="track3" title="Tier III maglev only"><span class="swatch" style="background:${hex(t(3).color)}"></span><span class="tool-label"> Maglev</span> <span class="price">${perUnit(3)}/u</span><span class="key">5</span></button>
       <div class="section">Manage</div>
-      <button class="btn tool" data-mode="bulldoze" title="Demolish track for a 25% refund">${icon("bulldoze")} Bulldoze <span class="key">6</span></button>
-      <button class="btn tool" id="tool-shop" title="Buy a new train">${icon("train")} Buy train <span class="key">B</span></button>
+      <button class="btn tool" data-mode="bulldoze" title="Demolish track for a 25% refund">${icon("bulldoze")}<span class="tool-label"> Bulldoze</span> <span class="key">6</span></button>
+      <button class="btn tool" id="tool-shop" title="Buy a new train">${icon("train")}<span class="tool-label"> Buy train</span> <span class="key">B</span></button>
     `;
     this.toolbar.querySelectorAll("[data-mode]").forEach((b) =>
       b.addEventListener("click", () => this.game.setMode(b.dataset.mode))
