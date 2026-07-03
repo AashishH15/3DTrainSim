@@ -69,6 +69,18 @@ export class Game {
     setInterval(() => { if (!this.state.gameOver) saveState(this.state); }, 5000);
     window.addEventListener("beforeunload", () => saveState(this.state));
 
+    // When the tab is hidden, rAF stops; keep the simulation ticking from a
+    // (throttled) interval instead so the empire keeps running.
+    this.lastHiddenTick = performance.now();
+    setInterval(() => {
+      const now = performance.now();
+      if (document.hidden) {
+        const dt = Math.min((now - this.lastHiddenTick) / 1000, 2);
+        stepSimulation(this.state, dt);
+      }
+      this.lastHiddenTick = now;
+    }, 500);
+
     this.clock = new THREE.Clock();
     this.loop();
 
