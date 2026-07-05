@@ -53,6 +53,7 @@ export function freshState(gameMode = "tycoon") {
     totalRevenue: 0,
     totalLost: 0,
     simTime: 0,
+    clockStarted: false, // simTime / HUD timer begin on first passenger spawn
     speed: 1,
     debtTimer: 0,
     gameOver: false,
@@ -120,6 +121,13 @@ export function loadState() {
     if (s.breachTimer == null) s.breachTimer = 0;
     if (s.collapseReason == null) s.collapseReason = null;
     if (s.survivalTime == null) s.survivalTime = 0;
+    if (s.clockStarted == null) {
+      const waiting = ["usa", "nyc"].reduce(
+        (n, mk) => n + Object.values(s.maps[mk].nodes).reduce((w, node) => w + node.waiting.reduce((a, g) => a + g.count, 0), 0),
+        0
+      );
+      s.clockStarted = s.totalDelivered > 0 || waiting > 0;
+    }
     if (s.gameMode === "survival" && !s.survivalRun) {
       s.survivalRun = {
         peakTrains: Object.keys(s.trains ?? {}).length,

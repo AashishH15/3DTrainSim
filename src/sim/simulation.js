@@ -21,25 +21,46 @@ export function demandFactor(simTime) {
 export function stepSimulation(state, dt) {
   if (state.gameOver || state.speed === 0) return;
   const simDt = dt * state.speed;
-  state.simTime += simDt;
 
   updateTrains(state, simDt);
 
   tickAcc += simDt;
   while (tickAcc >= SIM.tickSeconds) {
     tickAcc -= SIM.tickSeconds;
+    if (!state.clockStarted) {
+      if (!tryStartClock(state, SIM.tickSeconds)) continue;
+      state.clockStarted = true;
+      emit("toast", { msg: "First riders arrived — clock started", kind: "good" });
+    }
+    state.simTime += SIM.tickSeconds;
     economyTick(state, SIM.tickSeconds);
   }
 }
 
-function economyTick(state, dt) {
+/** HUD timer and survival score — frozen until the clock starts. */
+export function displaySimTime(state) {
+  return state.clockStarted ? state.simTime : 0;
+}
+
+function hasAnyStation(state) {
+  for (const mk of ["usa", "nyc"]) {
+    if (Object.values(state.maps[mk].nodes).some((n) => n.station)) return true;
+  }
+  return false;
+}
+
+/** Spawn-only pass while waiting for first riders; returns true if anyone appeared. */
+function tryStartClock(state, dt) {
+  if (!hasAnyStation(state)) return false;
+  return spawnPassengers(state, dt) > 0;
+}
+
+function spawnPassengers(state, dt) {
   const df = demandFactor(state.simTime);
+  let spawned = 0;
 
   for (const mapKey of ["usa", "nyc"]) {
     const ms = state.maps[mapKey];
-    dropoutPass(state, mapKey, ms, dt);
-
-    // Passenger spawning at stations that can reach at least one other station.
     for (const node of Object.values(ms.nodes)) {
       if (!node.station) continue;
       const reachable = serviceReachableStations(state, mapKey, node.id);
@@ -51,8 +72,8 @@ function economyTick(state, dt) {
       if (node.spawnAcc < 1) continue;
       const spawn = Math.floor(node.spawnAcc);
       node.spawnAcc -= spawn;
+      spawned += spawn;
 
-      // Destination: weighted by effective demand, mildly discounted by distance.
       let totalW = 0;
       const weights = reachable.map((r) => {
         const d = effectiveDemand(ms.nodes[r.id], state);
@@ -75,7 +96,17 @@ function economyTick(state, dt) {
         node.waiting.push({ count: spawn, dest: dest.id, fareDist: dest.dist, since: state.simTime });
       }
     }
+  }
+  return spawned;
+}
 
+function economyTick(state, dt) {
+  dropoutPass(state, "usa", state.maps.usa, dt);
+  dropoutPass(state, "nyc", state.maps.nyc, dt);
+  spawnPassengers(state, dt);
+
+  for (const mapKey of ["usa", "nyc"]) {
+    const ms = state.maps[mapKey];
     // Track maintenance.
     for (const edge of Object.values(ms.edges)) {
       state.cash -= TRACK_TYPES[edge.type].maintPerUnitPerMin * edge.length * (dt / 60);

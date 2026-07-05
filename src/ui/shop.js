@@ -1,5 +1,5 @@
 import { TIERS, fmtMoney, fmtInt, fmtSimDuration, GAME_MODES } from "../core/config.js";
-import { lostRatePerMin } from "../sim/simulation.js";
+import { lostRatePerMin, displaySimTime } from "../sim/simulation.js";
 import { formatSurvivalBest, recordSurvivalBest } from "../core/survivalBest.js";
 import { badgesSummary, evaluateSurvivalBadges } from "../core/survivalBadges.js";
 import { icon } from "./icons.js";
@@ -111,7 +111,7 @@ export function openGameOver(game) {
 export function openNetworkCollapse(game) {
   const s = game.state;
   evaluateSurvivalBadges(s);
-  const runSec = s.survivalTime || s.simTime;
+  const runSec = s.survivalTime || displaySimTime(s);
   const { isNew, bestSec, previousSec } = recordSurvivalBest(runSec);
   const { done, total } = badgesSummary();
   const bestLabel = fmtSimDuration(bestSec);

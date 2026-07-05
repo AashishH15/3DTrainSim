@@ -1,5 +1,5 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getPressureConfig, isSurvivalMode, fmtSimDuration } from "../core/config.js";
-import { incomePerMin, lostRatePerMin, breachProgress } from "../sim/simulation.js";
+import { incomePerMin, lostRatePerMin, breachProgress, displaySimTime } from "../sim/simulation.js";
 import { on } from "../core/bus.js";
 import { icon } from "./icons.js";
 import { formatNextGoal, goalsSummary, formatNextSurvivalBadge } from "./goals.js";
@@ -233,7 +233,7 @@ export class Hud {
     document.getElementById("hud-income").textContent = fmtMoney(incomePerMin(s));
     document.getElementById("hud-pax").textContent = fmtInt(s.totalDelivered);
     const elapsedEl = document.getElementById("hud-elapsed");
-    if (elapsedEl) elapsedEl.textContent = fmtSimDuration(s.simTime);
+    if (elapsedEl) elapsedEl.textContent = fmtSimDuration(displaySimTime(s));
 
     const survival = isSurvivalMode(s);
     const topbar = this.root.querySelector(".topbar");
