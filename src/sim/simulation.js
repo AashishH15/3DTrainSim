@@ -27,8 +27,9 @@ export function stepSimulation(state, dt) {
   tickAcc += simDt;
   while (tickAcc >= SIM.tickSeconds) {
     tickAcc -= SIM.tickSeconds;
+    const spawned = spawnPassengers(state, SIM.tickSeconds);
     if (!state.clockStarted) {
-      if (!tryStartClock(state, SIM.tickSeconds)) continue;
+      if (spawned === 0) continue;
       state.clockStarted = true;
       emit("toast", { msg: "First riders arrived — clock started", kind: "good" });
     }
@@ -40,19 +41,6 @@ export function stepSimulation(state, dt) {
 /** HUD timer and survival score — frozen until the clock starts. */
 export function displaySimTime(state) {
   return state.clockStarted ? state.simTime : 0;
-}
-
-function hasAnyStation(state) {
-  for (const mk of ["usa", "nyc"]) {
-    if (Object.values(state.maps[mk].nodes).some((n) => n.station)) return true;
-  }
-  return false;
-}
-
-/** Spawn-only pass while waiting for first riders; returns true if anyone appeared. */
-function tryStartClock(state, dt) {
-  if (!hasAnyStation(state)) return false;
-  return spawnPassengers(state, dt) > 0;
 }
 
 function spawnPassengers(state, dt) {
@@ -103,7 +91,6 @@ function spawnPassengers(state, dt) {
 function economyTick(state, dt) {
   dropoutPass(state, "usa", state.maps.usa, dt);
   dropoutPass(state, "nyc", state.maps.nyc, dt);
-  spawnPassengers(state, dt);
 
   for (const mapKey of ["usa", "nyc"]) {
     const ms = state.maps[mapKey];
