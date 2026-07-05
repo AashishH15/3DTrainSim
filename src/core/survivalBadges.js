@@ -148,7 +148,29 @@ export const SURVIVAL_BADGES = [
     },
     done: usaMaglevNation,
   },
+  {
+    id: "jack_of_all_trades",
+    category: "Capstone",
+    title: "Jack of all trades",
+    desc: "Unlock every other Survival badge",
+    capstone: true,
+    progress: () => capstoneProgress(),
+    done: () => regularSurvivalBadges().every((b) => loadUnlockedBadges().has(b.id)),
+  },
 ];
+
+export function regularSurvivalBadges() {
+  return SURVIVAL_BADGES.filter((b) => !b.capstone);
+}
+
+function capstoneProgress() {
+  const unlocked = loadUnlockedBadges();
+  const regular = regularSurvivalBadges();
+  return {
+    current: regular.filter((b) => unlocked.has(b.id)).length,
+    target: regular.length,
+  };
+}
 
 const badgeById = Object.fromEntries(SURVIVAL_BADGES.map((b) => [b.id, b]));
 
@@ -216,6 +238,15 @@ export function evaluateSurvivalBadges(state) {
   const unlocked = loadUnlockedBadges();
   const newly = [];
   for (const b of SURVIVAL_BADGES) {
+    if (b.capstone) continue;
+    if (unlocked.has(b.id)) continue;
+    if (b.done(state)) {
+      unlocked.add(b.id);
+      newly.push(b);
+    }
+  }
+  for (const b of SURVIVAL_BADGES) {
+    if (!b.capstone) continue;
     if (unlocked.has(b.id)) continue;
     if (b.done(state)) {
       unlocked.add(b.id);

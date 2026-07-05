@@ -96,7 +96,7 @@ function openSurvivalBadges(game) {
   const unlocked = loadUnlockedBadges();
   const best = formatSurvivalBest();
 
-  const categories = ["Duration", "Skill", "Network", "Expert"];
+  const categories = ["Duration", "Skill", "Network", "Expert", "Capstone"];
   const rows = categories.map((cat) => {
     const items = SURVIVAL_BADGES.filter((b) => b.category === cat).map((b) => {
       const complete = unlocked.has(b.id);
@@ -105,9 +105,9 @@ function openSurvivalBadges(game) {
         ? `<div class="goal-bar"><div class="goal-bar-fill" style="width:${Math.round(ratio * 100)}%"></div></div>`
         : "";
       return `
-        <div class="goal-row ${complete ? "complete" : ""}">
+        <div class="goal-row ${complete ? "complete" : ""} ${b.capstone ? "win" : ""}">
           <div class="goal-head">
-            <span class="goal-title">${b.title}</span>
+            <span class="goal-title">${b.title}${b.capstone ? " ★" : ""}</span>
             ${badgeStatusLabel(b, s, unlocked)}
           </div>
           <div class="goal-desc">${b.desc}</div>
