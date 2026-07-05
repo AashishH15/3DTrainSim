@@ -76,7 +76,7 @@ export class Hud {
           <div class="v" id="hud-fare">1.0×</div>
           <button class="btn small" data-fare="0.1">+</button>
         </div>
-        <button class="btn small" id="hud-map-toggle" title="Switch map (M)"></button>
+        <button class="btn quiet small" id="hud-overview" title="Network overview (O)">${icon("passengers")}</button>
         <button class="btn quiet small" id="hud-goals" title="Milestones">${icon("medal")}</button>
         <button class="btn quiet small" id="hud-help" title="How to play">${icon("info")}</button>
         <button class="btn quiet small danger" id="hud-newgame" title="Start over">${icon("restart")}</button>
@@ -96,7 +96,7 @@ export class Hud {
         this.refresh();
       })
     );
-    el.querySelector("#hud-map-toggle").addEventListener("click", () => this.game.toggleMap());
+    el.querySelector("#hud-overview").addEventListener("click", () => this.game.openOverview());
     el.querySelector("#hud-goals").addEventListener("click", () => this.game.openGoals());
     el.querySelector("#hud-help").addEventListener("click", () => this.game.openIntro());
     el.querySelector("#hud-newgame").addEventListener("click", () => {
@@ -265,10 +265,6 @@ export class Hud {
     }
     document.getElementById("hud-trains").textContent = Object.keys(s.trains).length;
     document.getElementById("hud-fare").textContent = `${s.maps[s.currentMap].fareMult.toFixed(1)}×`;
-    const toggle = document.getElementById("hud-map-toggle");
-    toggle.innerHTML = s.currentMap === "usa"
-      ? `${icon("pin")}<span class="map-label"> NYC</span>`
-      : `${icon("map")}<span class="map-label"> USA</span>`;
 
     this.root.querySelectorAll("[data-speed]").forEach((b) =>
       b.classList.toggle("active", +b.dataset.speed === s.speed)

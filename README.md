@@ -97,7 +97,7 @@ just with less real time to react.
 | `0` | Move / pan map |
 | `1`-`6` | Select tools (select, station, tracks, bulldoze) |
 | `B` | Train shop |
-| `M` | Switch between USA and NYC maps |
+| `O` | Network overview (all stations) |
 | `Space` | Pause |
 | Right-click / `Esc` | Cancel current action |
 

@@ -222,6 +222,46 @@ body {
 .goals-strip.done { color: var(--good); }
 .goals-strip.done b { color: var(--good); }
 
+.overview-modal { width: min(36rem, 92vw); }
+.overview-note {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; color: var(--ink-2); margin: -0.35rem 0 0.65rem;
+}
+.overview-note b { color: var(--ink); }
+.overview-alert { color: var(--bad); font-weight: 600; }
+.overview-list {
+  display: flex; flex-direction: column; gap: 0.45rem;
+  max-height: 52vh; overflow-y: auto; margin-top: 0.5rem;
+}
+.overview-empty {
+  color: var(--ink-3); font-size: 0.82rem; text-align: center; padding: 1.5rem 0.5rem;
+}
+.overview-row {
+  display: flex; flex-direction: column; gap: 0.25rem; width: 100%;
+  text-align: left; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 0.55rem 0.65rem; color: inherit; font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.overview-row:hover { background: var(--panel-3); border-color: color-mix(in srgb, var(--accent-border) 40%, var(--line)); }
+.overview-row.warn { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.overview-row.crowded { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); }
+.overview-row-head { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; }
+.overview-name { font-weight: 700; font-size: 0.86rem; }
+.overview-map-tag {
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ink-3); flex-shrink: 0;
+}
+.overview-platform { font-size: 0.76rem; color: var(--ink-2); }
+.overview-row.crowded .overview-platform { color: var(--bad); font-weight: 600; }
+.overview-bar {
+  height: 0.28rem; background: var(--panel-3); border-radius: 999px; overflow: hidden;
+}
+.overview-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+.overview-row.warn .overview-bar-fill { background: color-mix(in srgb, var(--accent-border) 70%, var(--accent)); }
+.overview-row.crowded .overview-bar-fill { background: var(--bad); }
+.overview-meta { font-size: 0.68rem; color: var(--ink-3); }
+
 .goals-modal { width: min(34rem, 92vw); }
 .goals-list { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.75rem 0 0.2rem; max-height: 52vh; overflow-y: auto; }
 .goal-row {
@@ -414,8 +454,7 @@ body {
   .stat .k { font-size: 0.55rem; letter-spacing: 0; }
   .divider { display: none; }
   .speed-group .btn { min-width: 2.1rem; padding-inline: 0.4rem; }
-  #hud-map-toggle { font-size: 0.72rem; max-width: 6.5rem; overflow: hidden; text-overflow: ellipsis; }
-  #hud-map-toggle .map-label { display: none; }
+  #hud-overview { font-size: 0.72rem; }
 
   .goals-strip {
     top: calc(4.55rem + env(safe-area-inset-top));

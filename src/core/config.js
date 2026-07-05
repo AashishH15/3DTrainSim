@@ -82,6 +82,7 @@ export const ECON = {
   upgradeSurcharge: 0.25,              // upgrading track costs (newCost - oldCost) * (1 + this)
   debtLimit: -250000,                  // bankruptcy below this
   debtGraceSec: 45,                    // sim-seconds allowed below the limit before game over
+  cityMapUnlockCash: 2_000_000,        // cash required to enter city maps (NYC)
   dwellTime: 2.2,                      // seconds a train waits at each stop
 };
 
@@ -185,6 +186,18 @@ export function networkPressureEnabled(state) {
 
 export function getPressureConfig(state) {
   return getGameMode(state).pressure ?? PRESSURE_DEFAULTS;
+}
+
+/** City detail maps (NYC) unlock once the player reaches the cash threshold. */
+export function cityMapsUnlocked(state) {
+  if (state.cityMapsUnlocked) return true;
+  return state.cash >= ECON.cityMapUnlockCash;
+}
+
+export function syncCityMapUnlock(state) {
+  if (!state.cityMapsUnlocked && state.cash >= ECON.cityMapUnlockCash) {
+    state.cityMapsUnlocked = true;
+  }
 }
 
 export const fmtSimDuration = (sec) => {

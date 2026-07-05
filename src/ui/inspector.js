@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, fmtMoney, fmtInt } from "../core/config.js";
+import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, ECON, cityMapsUnlocked } from "../core/config.js";
 import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat } from "../core/economy.js";
 import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
@@ -73,7 +73,14 @@ export class Inspector {
       actions.push(`<button class="btn primary" data-act="station">${icon("station")} Build station for ${fmtMoney(stationCost(mapKey, node))}</button>`);
     }
     if (mapKey === "usa" && node.rank === 1) {
-      actions.push(`<button class="btn" data-act="enternyc">${icon("pin")} Enter NYC map</button>`);
+      if (cityMapsUnlocked(s)) {
+        actions.push(`<button class="btn" data-act="enternyc">${icon("pin")} Enter NYC map</button>`);
+      } else {
+        actions.push(`<button class="btn" disabled title="Reach ${fmtMoney(ECON.cityMapUnlockCash)} cash">${icon("lock")} NYC map · ${fmtMoney(ECON.cityMapUnlockCash)}</button>`);
+      }
+    }
+    if (mapKey === "nyc") {
+      actions.push(`<button class="btn quiet" data-act="enterusa">${icon("map")} Return to USA map</button>`);
     }
 
     this.open(`
@@ -87,6 +94,7 @@ export class Inspector {
     this.el.querySelector('[data-act="unlock"]')?.addEventListener("click", () => g.unlockNode(nodeId));
     this.el.querySelector('[data-act="station"]')?.addEventListener("click", () => g.buildStation(nodeId));
     this.el.querySelector('[data-act="enternyc"]')?.addEventListener("click", () => g.switchMap("nyc"));
+    this.el.querySelector('[data-act="enterusa"]')?.addEventListener("click", () => g.switchMap("usa"));
   }
 
   // ---------- edge ----------

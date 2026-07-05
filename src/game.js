@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode } from "./core/config.js";
+import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode, cityMapsUnlocked } from "./core/config.js";
 import { freshState, loadState, saveState, clearSave, makeEdge, removeEdge } from "./core/state.js";
 import { edgeKey, nodeDist } from "./core/graph.js";
 import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund } from "./core/economy.js";
@@ -16,6 +16,7 @@ import { Hud } from "./ui/hud.js";
 import { Inspector } from "./ui/inspector.js";
 import { openShop as openShopModal, openGameOver, openNetworkCollapse, openIntro, openModePicker } from "./ui/shop.js";
 import { openGoals, openVictory, syncGoalProgress } from "./ui/goals.js";
+import { openNetworkOverview } from "./ui/overview.js";
 import { evaluateNewGoals } from "./core/goals.js";
 import { evaluateSurvivalBadges } from "./core/survivalBadges.js";
 import { icon } from "./ui/icons.js";
@@ -118,6 +119,7 @@ export class Game {
 
   openIntro() { openIntro(this); }
   openGoals() { openGoals(this); }
+  openOverview() { openNetworkOverview(this); }
 
   processGoals() {
     if (this.state.gameOver) return;
@@ -236,12 +238,15 @@ export class Game {
     });
   }
 
-  toggleMap() {
-    this.switchMap(this.state.currentMap === "usa" ? "nyc" : "usa");
-  }
-
   switchMap(mapKey) {
-    if (this.state.currentMap === mapKey) return;
+    if (mapKey === "nyc" && !cityMapsUnlocked(this.state)) {
+      emit("toast", {
+        msg: `City maps unlock at ${fmtMoney(ECON.cityMapUnlockCash)} cash`,
+        kind: "bad",
+      });
+      return false;
+    }
+    if (this.state.currentMap === mapKey) return true;
     this.cancelTransient();
     this.inspector.close();
     this.bundles[this.state.currentMap].controls.enabled = false;
@@ -251,6 +256,7 @@ export class Game {
     this.hud.renderToolbar();
     this.updateHint();
     emit("toast", { msg: mapKey === "usa" ? "National network" : "New York City network" });
+    return true;
   }
 
   setMode(mode) {
@@ -521,7 +527,7 @@ export class Game {
       const modeKeys = { 0: "pan", 1: "select", 2: "station", 3: "track1", 4: "track2", 5: "track3", 6: "bulldoze" };
       if (modeKeys[e.key]) this.setMode(modeKeys[e.key]);
       if (e.key === "b" || e.key === "B") this.openShop();
-      if (e.key === "m" || e.key === "M") this.toggleMap();
+      if (e.key === "o" || e.key === "O") this.openOverview();
     });
   }
 
