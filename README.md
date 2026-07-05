@@ -35,13 +35,58 @@ Then open the printed local URL (default http://localhost:5173).
    press Done (or Enter).
 4. Passengers spawn at stations based on demand and rush-hour cycles, board
    trains heading to their destination, and pay fares scaled by distance and
-   train tier. Track maintenance and train operating costs drain cash - stay
-   above -$250k or you go bankrupt.
-5. **Milestones** track your progress (medal button in the HUD). Expand your
-   network, grow revenue, and hit win conditions — all **50 US metros** or
-   **$5M cash**. You can keep playing after a win.
+   train tier. Track maintenance and train operating costs drain cash.
+5. **New Game** opens a mode picker — see [Game modes](#game-modes) below.
 6. Track can be **upgraded** in place (click it in Select mode) and demolished
    for a 25% refund. Trains can be sold for 50%.
+
+### Game modes
+
+Choose **Tycoon** or **Survival** when starting a new run (or from the mode picker
+on load). Both modes share the same maps, tools, and economy basics; they differ
+in pressure, scoring, and what “winning” means.
+
+| | **Tycoon** | **Survival** |
+|---|---|---|
+| Goal | Milestones + win conditions | Badges + personal best time |
+| Fail state | Bankruptcy below **−$250k** | **Network collapse** (sustained high Lost/min) |
+| Demand growth | Linear, modest cap | Compound, higher cap |
+| Crowding | Lighter platform limits | Pop-scaled, tighter limits |
+| HUD timer | **Time elapsed** | **Survived** (sim-time) |
+| Lost/min stat | Hidden | Always visible |
+
+**Shared:** The sim clock does not start until the first passengers spawn — you
+can lay track, buy trains, and assign routes without maintenance, debt pressure,
+or timer counting against you. Once riders appear at a connected station, the
+clock starts and the run is scored from there.
+
+#### Tycoon
+
+Classic empire builder. Open the medal button for **Milestones** — expand your
+network, grow revenue, and hit win conditions (**all 50 US metros** or
+**$5M cash**). You can keep playing after a win. Stay above **−$250k** or you
+go bankrupt after a grace period.
+
+#### Survival
+
+Endurance mode — no bankruptcy, no win screen. Demand escalates over sim-time;
+overcrowded stations cause riders to leave. If **Lost/min** stays at or above
+**15** for too long (~4 sim-minutes sustained), the network **collapses**. Your
+**Survived** time is the run score; a **personal best** is saved locally.
+
+Open the medal button for **Survival badges** — 15 lifetime achievements across
+four categories (unlocked once per browser, not per save):
+
+| Category | Examples |
+|---|---|
+| **Duration** | Rush Hour Veteran (10m), Peak Operator (30m), Iron Rail (1h) |
+| **Skill** | Clean sheet (20m zero lost), Minimalist (30m with ≤2 trains), Smooth operator (4 trains, no overcrowding) |
+| **Network** | National network (50 metros), Mass transit / Nation moved / Main line (10k–100k delivered), City network (15 NYC stations) |
+| **Expert** | Empire Grade (5h), Empire Ascendant (10h), Mass Transit Titan (1M delivered), Maglev Nation (all 50 metros on Maglev Guideway only) |
+
+Badge progress uses **sim-time** (not wall-clock), so playing at 4× speed does
+not shorten duration badges — you still survive the same amount of in-game time,
+just with less real time to react.
 
 ### Controls
 
@@ -55,7 +100,8 @@ Then open the printed local URL (default http://localhost:5173).
 | `Space` | Pause |
 | Right-click / `Esc` | Cancel current action |
 
-Progress autosaves to localStorage; "New Game" resets.
+Progress autosaves to localStorage; **New Game** resets the current run (Survival
+badges and personal best persist in localStorage).
 
 ## Deployment
 
