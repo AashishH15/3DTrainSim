@@ -17,6 +17,7 @@ export const SURVIVAL_BADGES = [
     category: "Duration",
     title: "Still standing",
     desc: "Survive 10 minutes",
+    progressUnit: "time",
     progress: (s) => ({ current: s.simTime, target: 600 }),
     done: (s) => s.simTime >= 600,
   },
@@ -25,6 +26,7 @@ export const SURVIVAL_BADGES = [
     category: "Duration",
     title: "Holding the line",
     desc: "Survive 30 minutes",
+    progressUnit: "time",
     progress: (s) => ({ current: s.simTime, target: 1800 }),
     done: (s) => s.simTime >= 1800,
   },
@@ -33,6 +35,7 @@ export const SURVIVAL_BADGES = [
     category: "Duration",
     title: "Marathon operator",
     desc: "Survive 1 hour",
+    progressUnit: "time",
     progress: (s) => ({ current: s.simTime, target: 3600 }),
     done: (s) => s.simTime >= 3600,
   },
@@ -215,7 +218,11 @@ export function formatSimMinutes(sec) {
 export function formatBadgeProgressShort(badge, state) {
   const p = badge.progress?.(state);
   if (!p) return badge.title;
-  if (p.target >= 3600) return `${badge.title} (${formatSimMinutes(p.current)} / ${formatSimMinutes(p.target)})`;
-  if (p.target >= 1000) return `${badge.title} (${fmtInt(Math.min(p.current, p.target))} / ${fmtInt(p.target)})`;
+  if (badge.progressUnit === "time") {
+    return `${badge.title} (${formatSimMinutes(p.current)} / ${formatSimMinutes(p.target)})`;
+  }
+  if (p.target >= 1000) {
+    return `${badge.title} (${fmtInt(Math.min(p.current, p.target))} / ${fmtInt(p.target)})`;
+  }
   return `${badge.title} (${Math.min(p.current, p.target)} / ${p.target})`;
 }

@@ -29,7 +29,7 @@ function badgeStatusLabel(badge, state, unlocked) {
   if (ratio != null) {
     const p = badge.progress(state);
     let label;
-    if (p.target >= 3600) {
+    if (badge.progressUnit === "time") {
       label = `${formatSimMinutes(p.current)} / ${formatSimMinutes(p.target)}`;
     } else if (p.target >= 1000) {
       label = `${fmtInt(Math.min(p.current, p.target))} / ${fmtInt(p.target)}`;
