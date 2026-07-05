@@ -1,5 +1,5 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt } from "../core/config.js";
-import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat } from "../core/economy.js";
+import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat } from "../core/economy.js";
 import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
 
@@ -54,9 +54,14 @@ export class Inspector {
       ["Status", status],
       ["Demand", formatDemandStat(node, s)],
       node.pop ? ["Metro pop.", `${node.pop}M (rank ${node.rank})`] : null,
-      ["Waiting", fmtInt(waiting)],
+      node.station ? ["Platform", formatCrowdingStat(mapKey, node), node.crowded ? "crowded" : ""] : ["Waiting", fmtInt(waiting)],
       ["Delivered here", fmtInt(node.servedTotal)],
+      node.station ? ["Fares", `${s.maps[mapKey].fareMult.toFixed(1)}×`] : null,
     ].filter(Boolean);
+
+    const rowHtml = rows.map(([k, v, cls]) =>
+      `<div class="row${cls ? ` row-${cls}` : ""}"><span class="k">${k}</span><span>${v}</span></div>`
+    ).join("");
 
     const actions = [];
     const expansionNote = mapKey === "usa" && !onNetwork
@@ -75,7 +80,7 @@ export class Inspector {
       <h3>${node.name}</h3>
       <div class="sub">${mapKey === "usa" ? "Metro area" : "NYC stop"}</div>
       ${expansionNote}
-      ${rows.map(([k, v]) => `<div class="row"><span class="k">${k}</span><span>${v}</span></div>`).join("")}
+      ${rowHtml}
       <div class="actions">${actions.join("")}</div>
     `);
 

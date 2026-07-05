@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, fmtMoney, fmtInt } from "../core/config.js";
+import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING } from "../core/config.js";
 import { incomePerMin } from "../sim/simulation.js";
 import { on } from "../core/bus.js";
 import { icon } from "./icons.js";
@@ -26,6 +26,9 @@ export class Hud {
         <div class="stat" title="Cash"><div class="v cash" id="hud-cash"></div><div class="k">Cash</div></div>
         <div class="stat" title="Income per minute"><div class="v" id="hud-income"></div><div class="k">Income / min</div></div>
         <div class="stat" title="Passengers delivered"><div class="v" id="hud-pax"></div><div class="k">Passengers</div></div>
+        <div class="stat stat-lost" id="hud-lost-stat" title="Riders who gave up waiting" hidden>
+          <div class="v" id="hud-lost"></div><div class="k">Lost</div>
+        </div>
         <div class="stat" title="Trains owned"><div class="v" id="hud-trains"></div><div class="k">Trains</div></div>
       </div>
       <div class="topbar-actions">
@@ -34,6 +37,11 @@ export class Hud {
           <button class="btn small" data-speed="1" title="Normal speed">1×</button>
           <button class="btn small" data-speed="2" title="Double speed">2×</button>
           <button class="btn small" data-speed="4" title="Quadruple speed">4×</button>
+        </div>
+        <div class="fare-group" title="Ticket fares for this map (higher fares reduce ridership)">
+          <button class="btn small" data-fare="-0.1">−</button>
+          <div class="v" id="hud-fare">1.0×</div>
+          <button class="btn small" data-fare="0.1">+</button>
         </div>
         <button class="btn small" id="hud-map-toggle" title="Switch map (M)"></button>
         <button class="btn quiet small" id="hud-goals" title="Milestones">${icon("medal")}</button>
@@ -44,6 +52,16 @@ export class Hud {
     this.root.appendChild(el);
     el.querySelectorAll("[data-speed]").forEach((b) =>
       b.addEventListener("click", () => { this.game.state.speed = +b.dataset.speed; })
+    );
+    el.querySelectorAll("[data-fare]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const ms = this.game.state.maps[this.game.state.currentMap];
+        ms.fareMult = Math.max(
+          PRICING.minMult,
+          Math.min(PRICING.maxMult, +(ms.fareMult + Number(b.dataset.fare)).toFixed(1))
+        );
+        this.refresh();
+      })
     );
     el.querySelector("#hud-map-toggle").addEventListener("click", () => this.game.toggleMap());
     el.querySelector("#hud-goals").addEventListener("click", () => this.game.openGoals());
@@ -158,7 +176,18 @@ export class Hud {
     cashEl.classList.toggle("neg", s.cash < 0);
     document.getElementById("hud-income").textContent = fmtMoney(incomePerMin(s));
     document.getElementById("hud-pax").textContent = fmtInt(s.totalDelivered);
+    const lostStat = document.getElementById("hud-lost-stat");
+    const lostEl = document.getElementById("hud-lost");
+    if (s.totalLost > 0) {
+      lostStat.hidden = false;
+      lostEl.textContent = fmtInt(s.totalLost);
+      lostStat.classList.add("warn");
+    } else {
+      lostStat.hidden = true;
+      lostStat.classList.remove("warn");
+    }
     document.getElementById("hud-trains").textContent = Object.keys(s.trains).length;
+    document.getElementById("hud-fare").textContent = `${s.maps[s.currentMap].fareMult.toFixed(1)}×`;
     const toggle = document.getElementById("hud-map-toggle");
     toggle.innerHTML = s.currentMap === "usa"
       ? `${icon("pin")}<span class="map-label"> NYC</span>`

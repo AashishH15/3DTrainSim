@@ -95,6 +95,15 @@ body {
 .divider { width: 1px; height: 1.9rem; background: var(--line); }
 .speed-group { display: flex; gap: 0.25rem; }
 .speed-group .btn { min-width: 2.1rem; }
+.fare-group {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  background: var(--panel-2); border-radius: var(--r-sm); padding: 0.15rem 0.25rem;
+}
+.fare-group .v {
+  font-size: 0.78rem; font-weight: 700; min-width: 2.8rem; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.stat.stat-lost.warn .v { color: var(--bad); }
 
 /* ---------- Toolbar ---------- */
 .toolbar {
@@ -134,6 +143,7 @@ body {
 .inspector .row:last-of-type { border-bottom: none; }
 .inspector .row .k { color: var(--ink-2); flex-shrink: 0; }
 .inspector .row span:last-child { text-align: right; }
+.inspector .row-crowded span:last-child { color: var(--bad); font-weight: 600; }
 .inspector .actions { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.8rem; }
 .inspector .actions .btn { width: 100%; }
 .inspector .train-list { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.75rem; }
@@ -300,12 +310,13 @@ body {
     padding: 0.4rem 0.45rem; max-width: none;
   }
   .topbar-stats {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.15rem 0.35rem;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.15rem 0.35rem;
     width: 100%;
   }
   .topbar-actions {
     justify-content: center; flex-wrap: wrap; gap: 0.3rem; width: 100%;
   }
+  .fare-group .v { min-width: 2.4rem; font-size: 0.72rem; }
   .stat { min-width: 0; flex: none; align-items: center; }
   .stat .v { font-size: 0.82rem; }
   .stat .k { font-size: 0.55rem; letter-spacing: 0; }
