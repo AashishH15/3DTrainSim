@@ -95,12 +95,11 @@ export const SIM = {
   demandScale: { usa: 0.15, nyc: 0.30 }, // passengers per demand-point per sim-second
 };
 
-// City/ridership growth: demand rises gently over time, and faster at
-// stations you actually serve well (transit-oriented development).
+// City/ridership growth defaults (Tycoon uses linear shape via GAME_MODES).
 export const GROWTH = {
-  perDayBase: 0.012,       // +1.2% base demand per sim-day (1 sim-day = 240 sim-seconds)
-  perThousandServed: 0.05, // +5% extra demand per 1,000 passengers delivered at this stop
-  maxMultiplier: 3.5,      // soft cap so no station runs away forever
+  perDayBase: 0.012,
+  perThousandServed: 0.05,
+  maxMultiplier: 3.5,
 };
 
 export const CROWDING = {
@@ -127,6 +126,7 @@ export const GAME_MODES = {
     networkPressure: false,
     demandScaleMult: 1,
     growth: {
+      shape: "linear",
       perDayBase: 0.012,
       perThousandServed: 0.05,
       maxMultiplier: 3.5,
@@ -148,8 +148,12 @@ export const GAME_MODES = {
     bankruptcy: false,
     networkPressure: true,
     demandScaleMult: 1.75,
+    // Compound growth back-solved for starter ring (6 stations, 1× Tier I, USA):
+    // Survived min ~10 ≈ ×1.21 demand (manageable), min ~25 ≈ ×1.61 (overcrowding onset
+    // with ridership growth), min ~30 ≈ ×1.76 (visible struggle). 1 sim-day = 240 sim-s.
     growth: {
-      perDayBase: 0.035,
+      shape: "compound",
+      perDayBase: 0.078,
       perThousandServed: 0.08,
       maxMultiplier: 20,
     },

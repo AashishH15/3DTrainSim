@@ -28,11 +28,19 @@ export function bulldozeRefund(mapKey, edge) {
   return Math.round(edgeBuildCost(mapKey, edge) * 0.25);
 }
 
+/** Time-only demand multiplier from elapsed sim-days. */
+export function timeGrowthFactor(growth, days) {
+  if (growth.shape === "compound") {
+    return Math.pow(1 + growth.perDayBase, days);
+  }
+  return 1 + growth.perDayBase * days;
+}
+
 /** Demand multiplier from elapsed time and passengers delivered at this stop. */
 export function demandGrowthMultiplier(node, state) {
   const g = getGameMode(state).growth;
   const days = state.simTime / 240;
-  const timeMult = 1 + g.perDayBase * days;
+  const timeMult = timeGrowthFactor(g, days);
   const serviceMult = 1 + g.perThousandServed * (node.servedTotal / 1000);
   return Math.min(g.maxMultiplier, timeMult * serviceMult);
 }
@@ -49,7 +57,7 @@ export function formatDemandStat(node, state) {
   const base = node.demand;
   const eff = effectiveDemand(node, state);
   const days = state.simTime / 240;
-  const timePct = Math.round(g.perDayBase * days * 100);
+  const timePct = Math.round((timeGrowthFactor(g, days) - 1) * 100);
   const servicePct = Math.round(g.perThousandServed * (node.servedTotal / 1000) * 100);
   const parts = [`base ${base}`];
   if (timePct > 0) parts.push(`+${timePct}% time`);
