@@ -61,29 +61,23 @@ Progress autosaves to localStorage; "New Game" resets.
 
 **Live site:** https://aashishh15.github.io/3DTrainSim/
 
-Pushes to `main` build and push `dist/` to the **`gh-pages` branch** via
-`.github/workflows/deploy.yml` (Vite `base` is set to `/3DTrainSim/` in CI).
+Pushes to `main` build and deploy via `.github/workflows/deploy.yml` (Vite `base`
+is `/3DTrainSim/` in CI).
 
-### Required GitHub settings
+### One-time GitHub setup (required for green deploys)
 
-**Pages source:** **Deploy from a branch** → **`gh-pages`** → **`/ (root)`** (you already have this).
+Use **one** deploy path only — do not mix branch deploy with Actions deploy.
 
-**Why Actions shows a red ❌:** Two workflows run on every push:
+1. **Settings → Pages → Build and deployment**
+   - **Source:** **GitHub Actions** (not “Deploy from a branch”)
+2. **Settings → Environments → github-pages**
+   - **Deployment branches:** **No restriction** (or add **`main`**)
+   - Remove any required reviewers if present
+3. Push to `main` or re-run the latest **Deploy to GitHub Pages** workflow
 
-| Workflow | Branch | What it does |
-|---|---|---|
-| **Deploy to GitHub Pages** ✅ | `main` | Builds the site and pushes `dist/` to `gh-pages` |
-| **pages build and deployment** ❌ | `gh-pages` | GitHub’s bot publishes the branch to Pages |
-
-Your green checkmark is workflow #1. The red X is workflow #2 failing — usually **environment protection** on the `github-pages` environment.
-
-**Fix the red X (one time):**
-
-1. **Settings → Environments → github-pages**
-2. Under **Deployment branches**, choose **No restriction** (or add **`gh-pages`** to the allowed list)
-3. Save, then **Actions → pages build and deployment → Re-run all jobs** (or push any commit to `main`)
-
-The site may already be live at https://aashishh15.github.io/3DTrainSim/ even while the bot workflow shows failed — the files on `gh-pages` are correct; GitHub’s publish step is what’s blocked.
+You should see a single workflow with **build** + **deploy** jobs both green. The
+old **`pages build and deployment`** bot runs stop mattering once Pages source is
+**GitHub Actions** and you are no longer publishing to the `gh-pages` branch.
 
 ## Tech
 
