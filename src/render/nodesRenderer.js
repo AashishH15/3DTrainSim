@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { makeLabel } from "./labels.js";
 import { MAP_RENDER } from "./constants.js";
 import { USA_METROS, metroColor } from "../data/usaMetros.js";
+import { platformCapacity } from "../core/economy.js";
 import { zoomScale } from "./viewScale.js";
 
 // Renders stop nodes (locked / unlocked / station) and keeps them in sync.
@@ -85,6 +86,7 @@ export class NodesRenderer {
       group.add(label);
     } else {
       // Full station: platform disc + tiny depot + colored ring.
+      let stationRing = null;
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(demandR, demandR * 1.12, 0.3 * s, 12),
         new THREE.MeshLambertMaterial({ color: 0xf2f5f8 })
@@ -98,7 +100,9 @@ export class NodesRenderer {
       );
       ring.rotation.x = Math.PI / 2;
       ring.position.y = 0.3 * s;
+      ring.userData.baseColor = color;
       group.add(ring);
+      stationRing = ring;
       const depot = new THREE.Mesh(
         new THREE.BoxGeometry(0.8 * s, 0.5 * s, 0.55 * s),
         new THREE.MeshLambertMaterial({ color })
@@ -126,6 +130,18 @@ export class NodesRenderer {
       wait.visible = false;
       group.add(wait);
       group.userData.waitBar = wait;
+
+      const pick = new THREE.Mesh(
+        new THREE.CylinderGeometry(Math.max(demandR * 1.6, 1.6 * s), Math.max(demandR * 1.6, 1.6 * s), 2.4 * s, 8),
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      pick.position.y = 0.6 * s;
+      pick.userData = group.userData;
+      group.add(pick);
+
+      this.bundle.pickables.add(group);
+      this.meshes[node.id] = { group, status, ring: stationRing };
+      return;
     }
 
     // Invisible fat pick cylinder so clicking is easy.
@@ -138,7 +154,7 @@ export class NodesRenderer {
     group.add(pick);
 
     this.bundle.pickables.add(group);
-    this.meshes[node.id] = { group, status };
+    this.meshes[node.id] = { group, status, ring: null };
   }
 
   // Called every frame: grows the waiting bar with queued passengers.
@@ -154,15 +170,23 @@ export class NodesRenderer {
       });
       if (!m.group.userData.waitBar) continue;
       const waiting = node.waiting.reduce((sum, g) => sum + g.count, 0);
+      const cap = platformCapacity(this.mapKey, node);
+      const fill = cap > 0 ? waiting / cap : 0;
       const bar = m.group.userData.waitBar;
       if (waiting < 1) {
         bar.visible = false;
       } else {
         bar.visible = true;
-        const h = Math.min(3, 0.2 + waiting / 90) * this.cfg.nodeScale;
+        const h = Math.min(3, 0.2 + fill * 1.4) * this.cfg.nodeScale;
         bar.scale.y = h;
         bar.position.y = h / 2;
-        bar.material.color.setHex(waiting > 250 ? 0xff6b6b : 0xffd257);
+        bar.material.color.setHex(node.crowded ? 0xff4444 : fill >= 0.7 ? 0xff8844 : 0xffd257);
+      }
+      if (m.ring?.material) {
+        const base = new THREE.Color(m.ring.userData.baseColor ?? this.nodeColor(node));
+        const stress = new THREE.Color(0xff4444);
+        const tint = node.crowded ? Math.min(1, fill) : fill * 0.65;
+        m.ring.material.color.copy(base).lerp(stress, tint);
       }
     }
   }
