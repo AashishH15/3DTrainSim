@@ -59,10 +59,13 @@ Progress autosaves to localStorage; "New Game" resets.
 
 ## Deployment
 
-Pushes to `main` build and deploy automatically to GitHub Pages via
+Pushes to `main` build and push `dist/` to the `gh-pages` branch via
 `.github/workflows/deploy.yml` (Vite `base` is set to `/3DTrainSim/` in CI).
-In repo **Settings → Pages**, set **Source** to **GitHub Actions** (not the
-`gh-pages` branch).
+
+In repo **Settings → Pages**, set **Source** to **Deploy from a branch**,
+branch **`gh-pages`**, folder **`/ (root)`**. Do not use the GitHub Actions
+Pages source unless you also allow `main` under **Settings → Environments →
+github-pages → Deployment branches**.
 
 ## Tech
 
