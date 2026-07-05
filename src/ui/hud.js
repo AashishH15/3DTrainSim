@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getGameMode, getPressureConfig, fmtSimDuration } from "../core/config.js";
+import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getPressureConfig, isSurvivalMode, fmtSimDuration } from "../core/config.js";
 import { incomePerMin, lostRatePerMin, breachProgress } from "../sim/simulation.js";
 import { on } from "../core/bus.js";
 import { icon } from "./icons.js";
@@ -22,7 +22,9 @@ export class Hud {
   }
 
   syncModeUi() {
-    const survival = !getGameMode(this.game.state).goals;
+    const survival = isSurvivalMode(this.game.state);
+    const topbar = this.root.querySelector(".topbar");
+    if (topbar) topbar.dataset.mode = survival ? "survival" : "tycoon";
     if (this.goalsStrip) this.goalsStrip.style.display = "";
     const goalsBtn = document.getElementById("hud-goals");
     if (goalsBtn) {
@@ -34,11 +36,15 @@ export class Hud {
     const lostStat = document.getElementById("hud-lost-stat");
     if (elapsedStat && elapsedLabel) {
       elapsedStat.hidden = false;
+      elapsedStat.style.display = "";
       elapsedStat.classList.toggle("stat-survival", survival);
       elapsedLabel.textContent = survival ? "Survived" : "Time elapsed";
       elapsedStat.title = survival ? "Elapsed survival time" : "Elapsed sim time";
     }
-    if (lostStat) lostStat.hidden = !survival;
+    if (lostStat) {
+      lostStat.hidden = !survival;
+      lostStat.style.display = survival ? "" : "none";
+    }
     this.refreshGoals();
   }
 
@@ -109,7 +115,7 @@ export class Hud {
   refreshGoals() {
     if (!this.goalsStrip) return;
     const s = this.game.state;
-    const survival = !getGameMode(s).goals;
+    const survival = isSurvivalMode(s);
 
     if (survival) {
       const { done, total } = badgesSummary();
@@ -229,16 +235,26 @@ export class Hud {
     const elapsedEl = document.getElementById("hud-elapsed");
     if (elapsedEl) elapsedEl.textContent = fmtSimDuration(s.simTime);
 
-    const survival = !getGameMode(s).goals;
+    const survival = isSurvivalMode(s);
+    const topbar = this.root.querySelector(".topbar");
+    if (topbar) topbar.dataset.mode = survival ? "survival" : "tycoon";
+
     const lostStat = document.getElementById("hud-lost-stat");
     const lostEl = document.getElementById("hud-lost");
     const lostLabel = document.getElementById("hud-lost-label");
-    if (survival && lostStat && lostEl && lostLabel) {
+    if (!survival) {
+      if (lostStat) {
+        lostStat.hidden = true;
+        lostStat.style.display = "none";
+        lostStat.classList.remove("warn", "critical");
+      }
+    } else if (lostStat && lostEl && lostLabel) {
+      lostStat.hidden = false;
+      lostStat.style.display = "";
       const rate = lostRatePerMin(s);
       const progress = breachProgress(s);
       const pressureCfg = getPressureConfig(s);
       const threshold = pressureCfg.rateThresholdPerMin;
-      lostStat.hidden = false;
       lostLabel.textContent = "Lost / min";
       lostEl.textContent = fmtInt(rate);
       lostStat.title = progress > 0
@@ -246,9 +262,6 @@ export class Hud {
         : `Riders lost per sim-minute over the last ${pressureCfg.lostWindowSec}s (threshold ${threshold})`;
       lostStat.classList.toggle("warn", rate >= threshold * 0.5);
       lostStat.classList.toggle("critical", progress >= 0.5);
-    } else if (lostStat) {
-      lostStat.hidden = true;
-      lostStat.classList.remove("warn", "critical");
     }
     document.getElementById("hud-trains").textContent = Object.keys(s.trains).length;
     document.getElementById("hud-fare").textContent = `${s.maps[s.currentMap].fareMult.toFixed(1)}×`;

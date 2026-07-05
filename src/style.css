@@ -88,6 +88,8 @@ body {
 .topbar-stats { display: flex; align-items: center; gap: 0.9rem; }
 .topbar-actions { display: flex; align-items: center; gap: 0.45rem; }
 .stat { display: flex; flex-direction: column; align-items: flex-start; min-width: 5.2rem; }
+.stat[hidden] { display: none !important; }
+.topbar[data-mode="tycoon"] #hud-lost-stat { display: none !important; }
 .stat .v { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stat .v.cash { color: var(--good); }
 .stat .v.cash.neg { color: var(--bad); }

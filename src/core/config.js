@@ -174,12 +174,13 @@ export function getGameMode(state) {
   return GAME_MODES[id] ?? GAME_MODES.tycoon;
 }
 
-/** Rolling lost-rate collapse mechanic (Survival, or ?pressure=1 to prototype in Tycoon). */
+export function isSurvivalMode(state) {
+  return (state?.gameMode ?? "tycoon") === "survival";
+}
+
+/** Rolling lost-rate collapse mechanic (Survival only). */
 export function networkPressureEnabled(state) {
-  if (typeof location !== "undefined" && new URLSearchParams(location.search).has("pressure")) {
-    return true;
-  }
-  return getGameMode(state).networkPressure;
+  return isSurvivalMode(state);
 }
 
 export function getPressureConfig(state) {
