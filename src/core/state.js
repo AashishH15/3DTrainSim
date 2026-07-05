@@ -122,9 +122,7 @@ export function loadState() {
     if (s.breachTimer == null) s.breachTimer = 0;
     if (s.collapseReason == null) s.collapseReason = null;
     if (s.survivalTime == null) s.survivalTime = 0;
-    if (s.cityMapsUnlocked == null) {
-      s.cityMapsUnlocked = s.cash >= ECON.cityMapUnlockCash;
-    }
+    if (s.cityMapsUnlocked == null) s.cityMapsUnlocked = false;
     if (s.clockStarted == null) {
       const waiting = ["usa", "nyc"].reduce(
         (n, mk) => n + Object.values(s.maps[mk].nodes).reduce((w, node) => w + node.waiting.reduce((a, g) => a + g.count, 0), 0),

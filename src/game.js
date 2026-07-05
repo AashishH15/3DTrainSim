@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode, cityMapsUnlocked } from "./core/config.js";
+import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode, cityMapsUnlocked, canAffordCityMap } from "./core/config.js";
 import { freshState, loadState, saveState, clearSave, makeEdge, removeEdge } from "./core/state.js";
 import { edgeKey, nodeDist } from "./core/graph.js";
 import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund } from "./core/economy.js";
@@ -241,7 +241,7 @@ export class Game {
   switchMap(mapKey) {
     if (mapKey === "nyc" && !cityMapsUnlocked(this.state)) {
       emit("toast", {
-        msg: `City maps unlock at ${fmtMoney(ECON.cityMapUnlockCash)} cash`,
+        msg: `Buy the NYC map for ${fmtMoney(ECON.cityMapPurchasePrice)} first`,
         kind: "bad",
       });
       return false;
@@ -256,6 +256,23 @@ export class Game {
     this.hud.renderToolbar();
     this.updateHint();
     emit("toast", { msg: mapKey === "usa" ? "National network" : "New York City network" });
+    return true;
+  }
+
+  /** One-time NYC detail map purchase (deducts cash). */
+  purchaseNycMap() {
+    if (cityMapsUnlocked(this.state)) return true;
+    const price = ECON.cityMapPurchasePrice;
+    if (this.state.cash < price) {
+      emit("toast", {
+        msg: `Need ${fmtMoney(price)} to buy the NYC map`,
+        kind: "bad",
+      });
+      return false;
+    }
+    this.state.cash -= price;
+    this.state.cityMapsUnlocked = true;
+    emit("toast", { msg: `NYC map purchased for ${fmtMoney(price)}`, kind: "good" });
     return true;
   }
 

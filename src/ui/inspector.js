@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, ECON, cityMapsUnlocked } from "../core/config.js";
+import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, ECON, cityMapsUnlocked, canAffordCityMap } from "../core/config.js";
 import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat } from "../core/economy.js";
 import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
@@ -75,8 +75,10 @@ export class Inspector {
     if (mapKey === "usa" && node.rank === 1) {
       if (cityMapsUnlocked(s)) {
         actions.push(`<button class="btn" data-act="enternyc">${icon("pin")} Enter NYC map</button>`);
+      } else if (canAffordCityMap(s)) {
+        actions.push(`<button class="btn primary" data-act="buynyc">${icon("pin")} Buy NYC map · ${fmtMoney(ECON.cityMapPurchasePrice)}</button>`);
       } else {
-        actions.push(`<button class="btn" disabled title="Reach ${fmtMoney(ECON.cityMapUnlockCash)} cash">${icon("lock")} NYC map · ${fmtMoney(ECON.cityMapUnlockCash)}</button>`);
+        actions.push(`<button class="btn" disabled title="Need ${fmtMoney(ECON.cityMapPurchasePrice)}">${icon("lock")} Buy NYC map · ${fmtMoney(ECON.cityMapPurchasePrice)}</button>`);
       }
     }
     if (mapKey === "nyc") {
@@ -93,6 +95,9 @@ export class Inspector {
 
     this.el.querySelector('[data-act="unlock"]')?.addEventListener("click", () => g.unlockNode(nodeId));
     this.el.querySelector('[data-act="station"]')?.addEventListener("click", () => g.buildStation(nodeId));
+    this.el.querySelector('[data-act="buynyc"]')?.addEventListener("click", () => {
+      if (g.purchaseNycMap()) g.switchMap("nyc");
+    });
     this.el.querySelector('[data-act="enternyc"]')?.addEventListener("click", () => g.switchMap("nyc"));
     this.el.querySelector('[data-act="enterusa"]')?.addEventListener("click", () => g.switchMap("usa"));
   }

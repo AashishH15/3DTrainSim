@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, getGameMode, getPressureConfig, networkPressureEnabled, demandElasticity, syncCityMapUnlock } from "../core/config.js";
+import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, getGameMode, getPressureConfig, networkPressureEnabled, demandElasticity } from "../core/config.js";
 import { shortestPath, cachedDijkstra } from "../core/graph.js";
 import { effectiveDemand, platformCapacity } from "../core/economy.js";
 import { noteSurvivalLost, noteSurvivalOvercrowding, tickSurvivalRunStats } from "../core/survivalBadges.js";
@@ -125,7 +125,6 @@ function economyTick(state, dt) {
 
   updateNetworkPressure(state, dt);
   if (getGameMode(state).id === "survival") tickSurvivalRunStats(state);
-  syncCityMapUnlock(state);
 }
 
 function dropoutPass(state, mapKey, ms, dt) {

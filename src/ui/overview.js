@@ -58,7 +58,7 @@ export function openNetworkOverview(game) {
     : `<div class="overview-empty">No stations yet — build stops on the map to see platform status here.</div>`;
 
   const lockNote = nycLocked
-    ? `<div class="overview-note">${icon("lock")} NYC detail map unlocks at <b>${fmtMoney(ECON.cityMapUnlockCash)}</b> cash — enter via New York City on the USA map.</div>`
+    ? `<div class="overview-note">${icon("lock")} Buy the NYC detail map for <b>${fmtMoney(ECON.cityMapPurchasePrice)}</b> at New York City on the USA map.</div>`
     : "";
 
   const mapActions = s.currentMap === "nyc"
@@ -88,11 +88,7 @@ export function openNetworkOverview(game) {
   backdrop.querySelectorAll(".overview-row").forEach((btn) => {
     btn.addEventListener("click", () => {
       const mapKey = btn.dataset.map;
-      if (mapKey === "nyc" && !cityMapsUnlocked(s)) {
-        close();
-        game.switchMap("nyc");
-        return;
-      }
+      if (mapKey === "nyc" && !cityMapsUnlocked(s)) return;
       if (!game.switchMap(mapKey)) return;
       game.inspector.showNode(btn.dataset.node);
       close();
