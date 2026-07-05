@@ -104,13 +104,92 @@ export const GROWTH = {
 };
 
 export const CROWDING = {
-  platformBase: { usa: 150, nyc: 100 },
-  platformPerDemand: 12,
-  platformPop2Exp: 0.75,
-  platformPopMult: 45,
-  minTrainMultiple: 1.5, // platform must hold at least this many Tier I trainloads
   patienceSec: 90,
   dropoutRatePerSec: 0.02,
+};
+
+export const PRESSURE_DEFAULTS = {
+  lostWindowSec: 60, // trailing window — matches incomePerMin; lagging vs patienceSec (90)
+  rateThresholdPerMin: 15, // tune in playtest
+  collapseGraceSec: 240, // sustained breach (4 sim-min); keep > window + patience
+  breachDecayFactor: 0.5, // gradual recovery below threshold
+};
+
+/** Per-mode rules: platform sizing, growth curve, fail conditions, HUD. */
+export const GAME_MODES = {
+  tycoon: {
+    id: "tycoon",
+    name: "Tycoon",
+    tagline: "Build an empire",
+    blurb: "Milestone goals, bankruptcy risk, modest station crowding. Expand across the US and win.",
+    goals: true,
+    bankruptcy: true,
+    networkPressure: false,
+    demandScaleMult: 1,
+    growth: {
+      perDayBase: 0.012,
+      perThousandServed: 0.05,
+      maxMultiplier: 3.5,
+    },
+    crowding: {
+      platformBase: { usa: 40, nyc: 25 },
+      platformPerDemand: 3,
+      usePopScale: false,
+      minTrainMultiple: 1.5,
+    },
+    pressure: PRESSURE_DEFAULTS,
+  },
+  survival: {
+    id: "survival",
+    name: "Survival",
+    tagline: "Outrun the city",
+    blurb: "Demand escalates for a long run. Keep Lost/min low or the network collapses — survived time is your score.",
+    goals: false,
+    bankruptcy: false,
+    networkPressure: true,
+    demandScaleMult: 1.75,
+    growth: {
+      perDayBase: 0.035,
+      perThousandServed: 0.08,
+      maxMultiplier: 20,
+    },
+    crowding: {
+      platformBase: { usa: 150, nyc: 100 },
+      platformPerDemand: 12,
+      usePopScale: true,
+      platformPop2Exp: 0.75,
+      platformPopMult: 45,
+      minTrainMultiple: 1.5,
+    },
+    pressure: PRESSURE_DEFAULTS,
+  },
+};
+
+export function getGameMode(state) {
+  const id = state?.gameMode ?? "tycoon";
+  return GAME_MODES[id] ?? GAME_MODES.tycoon;
+}
+
+/** Rolling lost-rate collapse mechanic (Survival, or ?pressure=1 to prototype in Tycoon). */
+export function networkPressureEnabled(state) {
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).has("pressure")) {
+    return true;
+  }
+  return getGameMode(state).networkPressure;
+}
+
+export function getPressureConfig(state) {
+  return getGameMode(state).pressure ?? PRESSURE_DEFAULTS;
+}
+
+export const fmtSimDuration = (sec) => {
+  const s = Math.max(0, Math.floor(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${r}s`;
+  return `${r}s`;
 };
 
 export const PRICING = {

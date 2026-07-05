@@ -54,7 +54,7 @@ export class Inspector {
       ["Status", status],
       ["Demand", formatDemandStat(node, s)],
       node.pop ? ["Metro pop.", `${node.pop}M (rank ${node.rank})`] : null,
-      node.station ? ["Platform", formatCrowdingStat(mapKey, node), node.crowded ? "crowded" : ""] : ["Waiting", fmtInt(waiting)],
+      node.station ? ["Platform", formatCrowdingStat(mapKey, node, s), node.crowded ? "crowded" : ""] : ["Waiting", fmtInt(waiting)],
       ["Delivered here", fmtInt(node.servedTotal)],
       node.station ? ["Fares", `${s.maps[mapKey].fareMult.toFixed(1)}×`] : null,
     ].filter(Boolean);

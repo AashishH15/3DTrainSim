@@ -103,7 +103,10 @@ body {
   font-size: 0.78rem; font-weight: 700; min-width: 2.8rem; text-align: center;
   font-variant-numeric: tabular-nums;
 }
+.stat.stat-survival .v { color: var(--accent); }
 .stat.stat-lost.warn .v { color: var(--bad); }
+.stat.stat-lost.critical .v { color: var(--bad); animation: pulse-bad 1.2s ease-in-out infinite; }
+@keyframes pulse-bad { 50% { opacity: 0.55; } }
 
 /* ---------- Toolbar ---------- */
 .toolbar {
@@ -225,6 +228,23 @@ body {
 .tier-card .spec { font-size: 0.74rem; color: var(--ink-2); display: flex; justify-content: space-between; }
 .tier-card .spec b { color: var(--ink); font-weight: 600; }
 .tier-card .price { font-weight: 700; font-size: 1rem; margin-top: 0.3rem; }
+
+.mode-picker-modal { width: min(36rem, 92vw); }
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.85rem; }
+@media (max-width: 560px) { .mode-cards { grid-template-columns: 1fr; } }
+.mode-card {
+  display: flex; flex-direction: column; align-items: stretch; text-align: left;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 0.85rem; cursor: pointer; color: inherit; font: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.mode-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel-2)); }
+.mode-card-head { display: flex; gap: 0.55rem; align-items: flex-start; }
+.mode-card-head .icon { width: 1.5rem; height: 1.5rem; color: var(--accent); flex-shrink: 0; margin-top: 0.1rem; }
+.mode-card h4 { font-size: 0.95rem; font-weight: 700; }
+.mode-tagline { font-size: 0.72rem; color: var(--ink-3); margin-top: 0.1rem; }
+.mode-blurb { font-size: 0.76rem; color: var(--ink-2); line-height: 1.45; margin: 0.55rem 0 0.75rem; flex: 1; }
+.mode-cta { font-size: 0.74rem; font-weight: 700; color: var(--accent); }
 
 /* ---------- Onboarding ---------- */
 .steps { display: flex; flex-direction: column; gap: 0.9rem; margin: 0.4rem 0 0.6rem; }

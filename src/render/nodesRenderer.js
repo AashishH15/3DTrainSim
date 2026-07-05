@@ -170,7 +170,7 @@ export class NodesRenderer {
       });
       if (!m.group.userData.waitBar) continue;
       const waiting = node.waiting.reduce((sum, g) => sum + g.count, 0);
-      const cap = platformCapacity(this.mapKey, node);
+      const cap = platformCapacity(this.mapKey, node, this.state);
       const fill = cap > 0 ? waiting / cap : 0;
       const bar = m.group.userData.waitBar;
       if (waiting < 1) {

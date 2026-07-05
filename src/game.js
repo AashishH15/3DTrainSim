@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney } from "./core/config.js";
+import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode } from "./core/config.js";
 import { freshState, loadState, saveState, clearSave, makeEdge, removeEdge } from "./core/state.js";
 import { edgeKey, nodeDist } from "./core/graph.js";
 import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund } from "./core/economy.js";
@@ -14,7 +14,7 @@ import { TrainRenderer } from "./render/trainRenderer.js";
 import { MAP_RENDER } from "./render/constants.js";
 import { Hud } from "./ui/hud.js";
 import { Inspector } from "./ui/inspector.js";
-import { openShop as openShopModal, openGameOver, openIntro } from "./ui/shop.js";
+import { openShop as openShopModal, openGameOver, openNetworkCollapse, openIntro, openModePicker } from "./ui/shop.js";
 import { openGoals, openVictory, syncGoalProgress } from "./ui/goals.js";
 import { evaluateNewGoals } from "./core/goals.js";
 import { icon } from "./ui/icons.js";
@@ -25,7 +25,8 @@ const INTRO_KEY = "railEmpire.introSeen";
 
 export class Game {
   constructor() {
-    this.state = loadState() ?? freshState();
+    const loaded = loadState();
+    this.state = loaded ?? freshState("tycoon");
     this.mode = "select";
     this.trackStart = null;      // nodeId while drawing track
     this.routeDraft = null;      // { trainId, stops: [] }
@@ -62,6 +63,7 @@ export class Game {
     syncGoalProgress(this.state);
     this.goalCheckAcc = 0;
     on("gameOver", () => openGameOver(this));
+    on("networkCollapse", () => openNetworkCollapse(this));
     on("goalsUpdated", () => this.hud.refreshGoals());
 
     this.raycaster = new THREE.Raycaster();
@@ -101,7 +103,10 @@ export class Game {
     this.loop();
 
     if (this.state.gameOver) openGameOver(this);
-    else if (!localStorage.getItem(INTRO_KEY)) {
+    else if (!loaded) {
+      this.state.speed = 0;
+      openModePicker(this, (mode) => this.beginRun(mode, { firstRun: true }));
+    } else if (!localStorage.getItem(INTRO_KEY) && getGameMode(this.state).goals) {
       localStorage.setItem(INTRO_KEY, "1");
       openIntro(this, { firstRun: true });
     }
@@ -111,7 +116,7 @@ export class Game {
   openGoals() { openGoals(this); }
 
   processGoals() {
-    if (this.state.gameOver) return;
+    if (this.state.gameOver || !getGameMode(this.state).goals) return;
     const newly = evaluateNewGoals(this.state);
     if (!newly.length) return;
     for (const g of newly) {
@@ -170,10 +175,27 @@ export class Game {
 
   // ================= game actions =================
 
-  newGame() {
-    clearSave();
-    this.state = freshState();
-    // Rebind state into renderers.
+  beginRun(gameMode, { firstRun = false } = {}) {
+    this.resetToState(freshState(gameMode));
+    this.state.speed = 1;
+    const mode = getGameMode(this.state);
+    if (firstRun && mode.goals && !localStorage.getItem(INTRO_KEY)) {
+      localStorage.setItem(INTRO_KEY, "1");
+      openIntro(this, { firstRun: true });
+    } else if (mode.goals) {
+      emit("toast", { msg: "New empire started. Build stations, lay track, buy trains!", kind: "good" });
+    } else {
+      emit("toast", {
+        msg: "Survival run — keep Lost/min low. Survived time is your score.",
+        kind: "good",
+      });
+    }
+    this.processGoals();
+    saveState(this.state);
+  }
+
+  resetToState(state) {
+    this.state = state;
     for (const mk of ["usa", "nyc"]) {
       const b = this.bundles[mk];
       b.pickables.clear();
@@ -188,9 +210,18 @@ export class Game {
     }
     this.setMode("select");
     this.inspector.close();
+    syncGoalProgress(this.state);
     this.hud.renderToolbar();
-    emit("toast", { msg: "New empire started. Build stations, lay track, buy trains!", kind: "good" });
-    this.processGoals();
+    this.hud.syncModeUi();
+    this.hud.refreshGoals();
+    this.updateHint();
+  }
+
+  newGame() {
+    openModePicker(this, (mode) => {
+      clearSave();
+      this.beginRun(mode);
+    });
   }
 
   toggleMap() {

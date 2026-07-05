@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, demandElasticity } from "../core/config.js";
+import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, getGameMode, getPressureConfig, networkPressureEnabled, demandElasticity } from "../core/config.js";
 import { shortestPath, cachedDijkstra } from "../core/graph.js";
 import { effectiveDemand, platformCapacity } from "../core/economy.js";
 import {
@@ -46,7 +46,7 @@ function economyTick(state, dt) {
 
       node.spawnAcc += effectiveDemand(node, state)
         * demandElasticity(ms.fareMult)
-        * SIM.demandScale[mapKey] * df * dt;
+        * SIM.demandScale[mapKey] * getGameMode(state).demandScaleMult * df * dt;
       if (node.spawnAcc < 1) continue;
       const spawn = Math.floor(node.spawnAcc);
       node.spawnAcc -= spawn;
@@ -86,28 +86,32 @@ function economyTick(state, dt) {
     state.cash -= TIERS[train.tier].opsPerMin * (dt / 60);
   }
 
-  // Debt / bankruptcy check.
-  if (state.cash < ECON.debtLimit) {
-    state.debtTimer += dt;
-    if (state.debtTimer > ECON.debtGraceSec) {
-      state.gameOver = true;
-      emit("gameOver");
-    } else if (Math.floor(state.debtTimer) !== Math.floor(state.debtTimer - dt)) {
-      emit("toast", {
-        msg: `Deep in debt! Bankruptcy in ${Math.ceil(ECON.debtGraceSec - state.debtTimer)}s`,
-        kind: "bad",
-      });
+  // Debt / bankruptcy check (Tycoon only).
+  if (getGameMode(state).bankruptcy) {
+    if (state.cash < ECON.debtLimit) {
+      state.debtTimer += dt;
+      if (state.debtTimer > ECON.debtGraceSec) {
+        state.gameOver = true;
+        emit("gameOver");
+      } else if (Math.floor(state.debtTimer) !== Math.floor(state.debtTimer - dt)) {
+        emit("toast", {
+          msg: `Deep in debt! Bankruptcy in ${Math.ceil(ECON.debtGraceSec - state.debtTimer)}s`,
+          kind: "bad",
+        });
+      }
+    } else {
+      state.debtTimer = 0;
     }
-  } else {
-    state.debtTimer = 0;
   }
+
+  updateNetworkPressure(state, dt);
 }
 
 function dropoutPass(state, mapKey, ms, dt) {
   for (const node of Object.values(ms.nodes)) {
     if (!node.station) continue;
     const waitingCount = node.waiting.reduce((s, g) => s + g.count, 0);
-    const capacity = platformCapacity(mapKey, node);
+    const capacity = platformCapacity(mapKey, node, state);
     const wasCrowded = node.crowded;
     node.crowded = waitingCount > capacity;
     if (node.crowded && !wasCrowded) {
@@ -125,6 +129,7 @@ function dropoutPass(state, mapKey, ms, dt) {
       if (lost > 0) {
         g.count -= lost;
         state.totalLost += lost;
+        if (networkPressureEnabled(state)) state.lostWindow.push([state.simTime, lost]);
       }
     }
     node.waiting = node.waiting.filter((g) => g.count > 0);
@@ -288,4 +293,44 @@ export function incomePerMin(state) {
   const cutoff = state.simTime - 60;
   state.incomeWindow = state.incomeWindow.filter(([t]) => t >= cutoff);
   return state.incomeWindow.reduce((s, [, v]) => s + v, 0);
+}
+
+// Rolling riders lost per minute (trailing window; lagging indicator vs patienceSec).
+export function lostRatePerMin(state) {
+  const { lostWindowSec } = getPressureConfig(state);
+  const cutoff = state.simTime - lostWindowSec;
+  state.lostWindow = state.lostWindow.filter(([t]) => t >= cutoff);
+  return state.lostWindow.reduce((s, [, v]) => s + v, 0);
+}
+
+function updateNetworkPressure(state, dt) {
+  if (!networkPressureEnabled(state) || state.gameOver) return;
+
+  const rate = lostRatePerMin(state);
+  const { rateThresholdPerMin, collapseGraceSec, breachDecayFactor } = getPressureConfig(state);
+  const prev = state.breachTimer;
+
+  if (rate >= rateThresholdPerMin) {
+    state.breachTimer += dt;
+    const warnAt = collapseGraceSec * 0.5;
+    if (prev < warnAt && state.breachTimer >= warnAt) {
+      emit("toast", { msg: "Riders leaving faster than you can recover — fix overcrowding", kind: "bad" });
+    }
+    if (state.breachTimer >= collapseGraceSec) {
+      state.gameOver = true;
+      state.collapseReason = "network";
+      state.survivalTime = state.simTime;
+      emit("networkCollapse");
+    }
+  } else {
+    state.breachTimer = Math.max(0, state.breachTimer - dt * breachDecayFactor);
+  }
+}
+
+/** 0–1 progress toward network collapse (for HUD). */
+export function breachProgress(state) {
+  if (!networkPressureEnabled(state)) return 0;
+  const { collapseGraceSec } = getPressureConfig(state);
+  if (collapseGraceSec <= 0) return 0;
+  return Math.min(1, state.breachTimer / collapseGraceSec);
 }

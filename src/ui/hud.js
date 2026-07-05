@@ -1,5 +1,5 @@
-import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING } from "../core/config.js";
-import { incomePerMin } from "../sim/simulation.js";
+import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getGameMode, getPressureConfig, networkPressureEnabled, fmtSimDuration } from "../core/config.js";
+import { incomePerMin, lostRatePerMin, breachProgress } from "../sim/simulation.js";
 import { on } from "../core/bus.js";
 import { icon } from "./icons.js";
 import { formatNextGoal, goalsSummary } from "./goals.js";
@@ -16,6 +16,16 @@ export class Hud {
     this.buildFleet();
     on("toast", (t) => this.toast(t.msg, t.kind));
     setInterval(() => this.refresh(), 250);
+    this.syncModeUi();
+  }
+
+  syncModeUi() {
+    const survival = !getGameMode(this.game.state).goals;
+    if (this.goalsStrip) this.goalsStrip.style.display = survival ? "none" : "";
+    const goalsBtn = document.getElementById("hud-goals");
+    if (goalsBtn) goalsBtn.hidden = survival;
+    const survStat = document.getElementById("hud-survival-stat");
+    if (survStat) survStat.hidden = !survival;
   }
 
   buildTopbar() {
@@ -26,8 +36,11 @@ export class Hud {
         <div class="stat" title="Cash"><div class="v cash" id="hud-cash"></div><div class="k">Cash</div></div>
         <div class="stat" title="Income per minute"><div class="v" id="hud-income"></div><div class="k">Income / min</div></div>
         <div class="stat" title="Passengers delivered"><div class="v" id="hud-pax"></div><div class="k">Passengers</div></div>
+        <div class="stat stat-survival" id="hud-survival-stat" title="Elapsed survival time" hidden>
+          <div class="v" id="hud-survival"></div><div class="k">Survived</div>
+        </div>
         <div class="stat stat-lost" id="hud-lost-stat" title="Riders who gave up waiting" hidden>
-          <div class="v" id="hud-lost"></div><div class="k">Lost</div>
+          <div class="v" id="hud-lost"></div><div class="k" id="hud-lost-label">Lost</div>
         </div>
         <div class="stat" title="Trains owned"><div class="v" id="hud-trains"></div><div class="k">Trains</div></div>
       </div>
@@ -80,7 +93,7 @@ export class Hud {
   }
 
   refreshGoals() {
-    if (!this.goalsStrip) return;
+    if (!this.goalsStrip || !getGameMode(this.game.state).goals) return;
     const s = this.game.state;
     const { done, total } = goalsSummary(s);
     const next = formatNextGoal(s);
@@ -176,15 +189,38 @@ export class Hud {
     cashEl.classList.toggle("neg", s.cash < 0);
     document.getElementById("hud-income").textContent = fmtMoney(incomePerMin(s));
     document.getElementById("hud-pax").textContent = fmtInt(s.totalDelivered);
+    const survStat = document.getElementById("hud-survival-stat");
+    const survEl = document.getElementById("hud-survival");
+    if (survStat && survEl && !survStat.hidden) {
+      survEl.textContent = fmtSimDuration(s.simTime);
+    }
     const lostStat = document.getElementById("hud-lost-stat");
     const lostEl = document.getElementById("hud-lost");
-    if (s.totalLost > 0) {
+    const lostLabel = document.getElementById("hud-lost-label");
+    const pressure = networkPressureEnabled(s);
+    const pressureCfg = getPressureConfig(s);
+    if (pressure) {
+      const rate = lostRatePerMin(s);
+      const progress = breachProgress(s);
+      const threshold = pressureCfg.rateThresholdPerMin;
       lostStat.hidden = false;
+      lostLabel.textContent = "Lost / min";
+      lostEl.textContent = fmtInt(rate);
+      lostStat.title = progress > 0
+        ? `Riders lost per sim-minute (threshold ${threshold}). Collapse in ${fmtSimDuration(pressureCfg.collapseGraceSec - s.breachTimer)} if overcrowding continues.`
+        : `Riders lost per sim-minute over the last ${pressureCfg.lostWindowSec}s (threshold ${threshold})`;
+      lostStat.classList.toggle("warn", rate >= threshold * 0.5);
+      lostStat.classList.toggle("critical", progress >= 0.5);
+    } else if (s.totalLost > 0) {
+      lostStat.hidden = false;
+      lostLabel.textContent = "Lost";
       lostEl.textContent = fmtInt(s.totalLost);
+      lostStat.title = "Riders who gave up waiting";
       lostStat.classList.add("warn");
+      lostStat.classList.remove("critical");
     } else {
       lostStat.hidden = true;
-      lostStat.classList.remove("warn");
+      lostStat.classList.remove("warn", "critical");
     }
     document.getElementById("hud-trains").textContent = Object.keys(s.trains).length;
     document.getElementById("hud-fare").textContent = `${s.maps[s.currentMap].fareMult.toFixed(1)}×`;

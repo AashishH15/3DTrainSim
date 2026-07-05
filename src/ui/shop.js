@@ -1,5 +1,42 @@
-import { TIERS, fmtMoney, fmtInt } from "../core/config.js";
+import { TIERS, fmtMoney, fmtInt, fmtSimDuration, GAME_MODES } from "../core/config.js";
+import { lostRatePerMin } from "../sim/simulation.js";
 import { icon } from "./icons.js";
+
+export function openModePicker(game, onPick) {
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.id = "mode-picker-backdrop";
+
+  const cards = Object.values(GAME_MODES).map((m) => `
+    <button type="button" class="mode-card" data-mode="${m.id}">
+      <div class="mode-card-head">
+        ${icon(m.id === "survival" ? "close" : "medal")}
+        <div>
+          <h4>${m.name}</h4>
+          <div class="mode-tagline">${m.tagline}</div>
+        </div>
+      </div>
+      <p class="mode-blurb">${m.blurb}</p>
+      <span class="mode-cta">Play ${m.name}</span>
+    </button>
+  `).join("");
+
+  backdrop.innerHTML = `
+    <div class="modal mode-picker-modal">
+      <h2>${icon("train")} Choose your run</h2>
+      <div class="sub">Same maps and tools — different pacing and win conditions.</div>
+      <div class="mode-cards">${cards}</div>
+    </div>
+  `;
+  document.getElementById("hud").appendChild(backdrop);
+
+  backdrop.querySelectorAll("[data-mode]").forEach((b) =>
+    b.addEventListener("click", () => {
+      backdrop.remove();
+      onPick(b.dataset.mode);
+    })
+  );
+}
 
 export function openShop(game) {
   const backdrop = document.createElement("div");
@@ -44,6 +81,10 @@ export function openShop(game) {
 }
 
 export function openGameOver(game) {
+  if (game.state.collapseReason === "network") {
+    openNetworkCollapse(game);
+    return;
+  }
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
@@ -54,6 +95,33 @@ export function openGameOver(game) {
         and earned ${fmtMoney(game.state.totalRevenue)} in fares.
       </div>
       <button class="btn primary" data-restart>Start a new empire</button>
+    </div>
+  `;
+  document.getElementById("hud").appendChild(backdrop);
+  backdrop.querySelector("[data-restart]").addEventListener("click", () => {
+    backdrop.remove();
+    game.newGame();
+  });
+}
+
+export function openNetworkCollapse(game) {
+  const s = game.state;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal" style="text-align:center; width:min(28rem,92vw);">
+      <h2 style="justify-content:center;">${icon("close")} Network collapsed</h2>
+      <div class="sub" style="margin:0.6rem 0 0.4rem;">
+        Too many riders gave up waiting. Your network couldn't keep pace with demand.
+      </div>
+      <div class="stat" style="align-items:center; margin:1rem 0 1.2rem;">
+        <div class="v" style="font-size:1.6rem; color:var(--accent);">${fmtSimDuration(s.survivalTime || s.simTime)}</div>
+        <div class="k">Survived</div>
+      </div>
+      <div class="sub" style="font-size:0.78rem; margin-bottom:1.2rem;">
+        Delivered ${fmtInt(s.totalDelivered)} passengers · Peak lost rate ${fmtInt(lostRatePerMin(s))}/min at collapse
+      </div>
+      <button class="btn primary" data-restart>Try again</button>
     </div>
   `;
   document.getElementById("hud").appendChild(backdrop);

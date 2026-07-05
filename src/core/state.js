@@ -10,7 +10,7 @@ export function metroDemand(pop) {
   return +(2 + pop * 0.45).toFixed(1);
 }
 
-export function freshState() {
+export function freshState(gameMode = "tycoon") {
   const usaNodes = {};
   for (const m of USA_METROS) {
     const [x, z] = projectMetro(m);
@@ -47,6 +47,7 @@ export function freshState() {
 
   return {
     version: 1,
+    gameMode,
     cash: ECON.startCash,
     totalDelivered: 0,
     totalRevenue: 0,
@@ -65,6 +66,10 @@ export function freshState() {
     trains: {},
     nextTrainId: 1,
     incomeWindow: [], // [simTime, delta] samples for $/min display
+    lostWindow: [], // [simTime, count] samples for lost/min when network pressure is on
+    breachTimer: 0, // sustained lost-rate breach accumulator (sim-seconds)
+    collapseReason: null, // null | "network"
+    survivalTime: 0, // sim-seconds survived at collapse (score)
   };
 }
 
@@ -101,9 +106,14 @@ export function loadState() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (s?.version !== 1) return null;
+    if (!s.gameMode) s.gameMode = "tycoon";
     if (!s.completedGoals) s.completedGoals = [];
     if (s.victoryShown == null) s.victoryShown = false;
     if (s.totalLost == null) s.totalLost = 0;
+    if (!s.lostWindow) s.lostWindow = [];
+    if (s.breachTimer == null) s.breachTimer = 0;
+    if (s.collapseReason == null) s.collapseReason = null;
+    if (s.survivalTime == null) s.survivalTime = 0;
     for (const mk of ["usa", "nyc"]) {
       if (s.maps[mk].fareMult == null) s.maps[mk].fareMult = 1.0;
     }
