@@ -1,5 +1,5 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt } from "../core/config.js";
-import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund } from "../core/economy.js";
+import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat } from "../core/economy.js";
 import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
 
@@ -52,7 +52,7 @@ export class Inspector {
         : "Outside your network";
     const rows = [
       ["Status", status],
-      ["Demand", `${node.demand} pts`],
+      ["Demand", formatDemandStat(node, s)],
       node.pop ? ["Metro pop.", `${node.pop}M (rank ${node.rank})`] : null,
       ["Waiting", fmtInt(waiting)],
       ["Delivered here", fmtInt(node.servedTotal)],
