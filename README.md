@@ -139,3 +139,7 @@ use that environment; only GitHub’s publish step does.
 - Tick-based passenger/economy simulation decoupled from the render loop
 - UI icons: [Phosphor Icons](https://phosphoricons.com) (MIT license)
 - Font: [Outfit](https://fonts.google.com/specimen/Outfit) (OFL) via Fontsource
+
+## License
+
+MIT — see [LICENSE](LICENSE).
