@@ -189,6 +189,7 @@ export function openIntro(game, { firstRun = false } = {}) {
         <b>Right-click / Cancel</b> backs out · <b>Space</b> pauses
       </div>
       <div class="modal-footer">
+        <button class="btn quiet" data-report-bug>${icon("bug")} Report bug</button>
         <button class="btn primary" data-close>${firstRun ? "Start building" : "Got it"}</button>
       </div>
     </div>
@@ -197,4 +198,7 @@ export function openIntro(game, { firstRun = false } = {}) {
   const close = () => backdrop.remove();
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
   backdrop.querySelector("[data-close]").addEventListener("click", close);
+  backdrop.querySelector("[data-report-bug]")?.addEventListener("click", () => {
+    game.reportBug();
+  });
 }

@@ -125,6 +125,23 @@ export class Game {
   openOverview() { openNetworkOverview(this); }
   openShare(opts) { openShareModal(this, opts); }
 
+  reportBug() {
+    const s = this.state;
+    const currentMap = s ? (s.currentMap === "nyc" ? "New York City (nyc)" : "USA National (usa)") : "Unknown";
+    const mode = s ? getGameMode(s).name : "Unknown";
+    const trainCount = s ? Object.keys(s.trains || {}).length : 0;
+    const cash = s ? fmtMoney(s.cash) : "$0";
+    const userAgent = navigator.userAgent;
+
+    const body = `**Describe the bug:**\n\n\n**Steps to reproduce:**\n1. \n2. \n\n**Expected behavior:**\n\n\n---\n**Debug Info (Auto-generated):**\n- **Map:** ${currentMap}\n- **Game Mode:** ${mode}\n- **Trains Owned:** ${trainCount}\n- **Cash:** ${cash}\n- **Browser / OS:** ${userAgent}`;
+
+    const issueUrl = `https://github.com/aashishh15/3DTrainSim/issues/new?` + new URLSearchParams({
+      title: '[Bug] ',
+      body: body,
+    });
+    window.open(issueUrl, "_blank", "noopener,noreferrer");
+  }
+
   processGoals() {
     if (this.state.gameOver) return;
     if (getGameMode(this.state).goals) {
