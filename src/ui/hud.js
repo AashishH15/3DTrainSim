@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getGameMode, getPressureConfig, networkPressureEnabled, fmtSimDuration } from "../core/config.js";
+import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getGameMode, getPressureConfig, fmtSimDuration } from "../core/config.js";
 import { incomePerMin, lostRatePerMin, breachProgress } from "../sim/simulation.js";
 import { on } from "../core/bus.js";
 import { icon } from "./icons.js";
@@ -29,8 +29,16 @@ export class Hud {
       goalsBtn.hidden = false;
       goalsBtn.title = survival ? "Survival badges" : "Milestones";
     }
-    const survStat = document.getElementById("hud-survival-stat");
-    if (survStat) survStat.hidden = !survival;
+    const elapsedStat = document.getElementById("hud-elapsed-stat");
+    const elapsedLabel = document.getElementById("hud-elapsed-label");
+    const lostStat = document.getElementById("hud-lost-stat");
+    if (elapsedStat && elapsedLabel) {
+      elapsedStat.hidden = false;
+      elapsedStat.classList.toggle("stat-survival", survival);
+      elapsedLabel.textContent = survival ? "Survived" : "Time elapsed";
+      elapsedStat.title = survival ? "Elapsed survival time" : "Elapsed sim time";
+    }
+    if (lostStat) lostStat.hidden = !survival;
     this.refreshGoals();
   }
 
@@ -42,10 +50,10 @@ export class Hud {
         <div class="stat" title="Cash"><div class="v cash" id="hud-cash"></div><div class="k">Cash</div></div>
         <div class="stat" title="Income per minute"><div class="v" id="hud-income"></div><div class="k">Income / min</div></div>
         <div class="stat" title="Passengers delivered"><div class="v" id="hud-pax"></div><div class="k">Passengers</div></div>
-        <div class="stat stat-survival" id="hud-survival-stat" title="Elapsed survival time" hidden>
-          <div class="v" id="hud-survival"></div><div class="k">Survived</div>
+        <div class="stat" id="hud-elapsed-stat" title="Elapsed time">
+          <div class="v" id="hud-elapsed"></div><div class="k" id="hud-elapsed-label">Time elapsed</div>
         </div>
-        <div class="stat stat-lost" id="hud-lost-stat" title="Riders who gave up waiting" hidden>
+        <div class="stat stat-lost" id="hud-lost-stat" title="Riders lost per minute" hidden>
           <div class="v" id="hud-lost"></div><div class="k" id="hud-lost-label">Lost</div>
         </div>
         <div class="stat" title="Trains owned"><div class="v" id="hud-trains"></div><div class="k">Trains</div></div>
@@ -218,19 +226,17 @@ export class Hud {
     cashEl.classList.toggle("neg", s.cash < 0);
     document.getElementById("hud-income").textContent = fmtMoney(incomePerMin(s));
     document.getElementById("hud-pax").textContent = fmtInt(s.totalDelivered);
-    const survStat = document.getElementById("hud-survival-stat");
-    const survEl = document.getElementById("hud-survival");
-    if (survStat && survEl && !survStat.hidden) {
-      survEl.textContent = fmtSimDuration(s.simTime);
-    }
+    const elapsedEl = document.getElementById("hud-elapsed");
+    if (elapsedEl) elapsedEl.textContent = fmtSimDuration(s.simTime);
+
+    const survival = !getGameMode(s).goals;
     const lostStat = document.getElementById("hud-lost-stat");
     const lostEl = document.getElementById("hud-lost");
     const lostLabel = document.getElementById("hud-lost-label");
-    const pressure = networkPressureEnabled(s);
-    const pressureCfg = getPressureConfig(s);
-    if (pressure) {
+    if (survival && lostStat && lostEl && lostLabel) {
       const rate = lostRatePerMin(s);
       const progress = breachProgress(s);
+      const pressureCfg = getPressureConfig(s);
       const threshold = pressureCfg.rateThresholdPerMin;
       lostStat.hidden = false;
       lostLabel.textContent = "Lost / min";
@@ -240,14 +246,7 @@ export class Hud {
         : `Riders lost per sim-minute over the last ${pressureCfg.lostWindowSec}s (threshold ${threshold})`;
       lostStat.classList.toggle("warn", rate >= threshold * 0.5);
       lostStat.classList.toggle("critical", progress >= 0.5);
-    } else if (s.totalLost > 0) {
-      lostStat.hidden = false;
-      lostLabel.textContent = "Lost";
-      lostEl.textContent = fmtInt(s.totalLost);
-      lostStat.title = "Riders who gave up waiting";
-      lostStat.classList.add("warn");
-      lostStat.classList.remove("critical");
-    } else {
+    } else if (lostStat) {
       lostStat.hidden = true;
       lostStat.classList.remove("warn", "critical");
     }
