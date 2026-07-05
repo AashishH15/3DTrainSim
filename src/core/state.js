@@ -54,6 +54,8 @@ export function freshState() {
     speed: 1,
     debtTimer: 0,
     gameOver: false,
+    victoryShown: false,
+    completedGoals: [],
     currentMap: "usa",
     maps: {
       usa: { nodes: usaNodes, edges: {}, pathVersion: 0 },
@@ -98,6 +100,8 @@ export function loadState() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (s?.version !== 1) return null;
+    if (!s.completedGoals) s.completedGoals = [];
+    if (s.victoryShown == null) s.victoryShown = false;
     // Refresh static node positions/demand in case data was retuned.
     const fresh = freshState();
     for (const mk of ["usa", "nyc"]) {
