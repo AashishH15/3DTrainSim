@@ -1,6 +1,6 @@
 import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, getGameMode, getPressureConfig, networkPressureEnabled, demandElasticity } from "../core/config.js";
 import { shortestPath, cachedDijkstra } from "../core/graph.js";
-import { effectiveDemand, platformCapacity } from "../core/economy.js";
+import { effectiveDemand, platformCapacity, costMultiplier } from "../core/economy.js";
 import { noteSurvivalLost, noteSurvivalOvercrowding, tickSurvivalRunStats } from "../core/survivalBadges.js";
 import {
   canBoardTrain,
@@ -92,17 +92,19 @@ function economyTick(state, dt) {
   dropoutPass(state, "usa", state.maps.usa, dt);
   dropoutPass(state, "nyc", state.maps.nyc, dt);
 
+  const costMult = costMultiplier(state);
+
   for (const mapKey of ["usa", "nyc"]) {
     const ms = state.maps[mapKey];
     // Track maintenance.
     for (const edge of Object.values(ms.edges)) {
-      state.cash -= TRACK_TYPES[edge.type].maintPerUnitPerMin * edge.length * (dt / 60);
+      state.cash -= TRACK_TYPES[edge.type].maintPerUnitPerMin * edge.length * (dt / 60) * costMult;
     }
   }
 
   // Train operating costs.
   for (const train of Object.values(state.trains)) {
-    state.cash -= TIERS[train.tier].opsPerMin * (dt / 60);
+    state.cash -= TIERS[train.tier].opsPerMin * (dt / 60) * costMult;
   }
 
   // Debt / bankruptcy check (Tycoon only).

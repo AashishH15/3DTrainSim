@@ -36,6 +36,14 @@ export function timeGrowthFactor(growth, days) {
   return 1 + growth.perDayBase * days;
 }
 
+/** Inflation multiplier on track maintenance and train operating costs (Survival mode). */
+export function costMultiplier(state) {
+  const g = getGameMode(state).growth;
+  if (!g.costGrowthPerDay) return 1;
+  const days = state.simTime / 240;
+  return Math.min(6, Math.pow(1 + g.costGrowthPerDay, days));
+}
+
 /** Demand multiplier from elapsed time and passengers delivered at this stop. */
 export function demandGrowthMultiplier(node, state) {
   const g = getGameMode(state).growth;
