@@ -163,7 +163,7 @@ export function updateSurges(state, dt) {
       // If frustration decay timer expires (4 minutes): citizens give up and surge is abandoned
       if (surge.frustrationTimer <= 0) {
         ss.abandonedNodes[nodeId] = {
-          penalty: 4,
+          penalty: 5,
           delivered: 0,
           connected: false,
           name: node.name,
@@ -172,7 +172,7 @@ export function updateSurges(state, dt) {
         ss.abandonedCount = Object.keys(ss.abandonedNodes).length;
 
         emit("toast", {
-          msg: `❌ Citizens in ${node.name} gave up! Strike added (+4 Lost/min penalty).`,
+          msg: `❌ Citizens in ${node.name} gave up! Strike added (+5 Lost/min penalty).`,
           kind: "bad",
           key: `surge-abandoned:${nodeId}`,
         });

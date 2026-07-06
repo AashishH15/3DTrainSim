@@ -145,13 +145,17 @@ export function openNetworkCollapse(game) {
     </div>
   ` : "";
 
+  const collapseSubtitle = s.collapseReason === "surge"
+    ? `Network collapsed — 5 demand surges were abandoned.`
+    : `Too many riders gave up waiting. Your network couldn't keep pace with station demand.`;
+
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
     <div class="modal" style="text-align:center; width:min(28rem,92vw);">
       <h2 style="justify-content:center;">${icon("close")} Network collapsed</h2>
       <div class="sub" style="margin:0.6rem 0 0.4rem;">
-        Too many riders gave up waiting. Your network couldn't keep pace with demand.
+        ${collapseSubtitle}
       </div>
       <div class="stat" style="align-items:center; margin:1rem 0 0.5rem;">
         <div class="v" style="font-size:1.6rem; color:var(--accent);">${fmtSimDuration(runSec)}</div>

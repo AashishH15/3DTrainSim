@@ -110,7 +110,7 @@ export const CROWDING = {
 
 export const PRESSURE_DEFAULTS = {
   lostWindowSec: 60, // trailing window — matches incomePerMin; lagging vs patienceSec (90)
-  rateThresholdPerMin: 15, // tune in playtest
+  rateThresholdPerMin: 25, // threshold for 5 strikes (+5 Lost/min each)
   collapseGraceSec: 240, // sustained breach (4 sim-min); keep > window + patience
   breachDecayFactor: 0.5, // gradual recovery below threshold
 };

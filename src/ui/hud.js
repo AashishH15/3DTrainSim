@@ -44,9 +44,14 @@ export class Hud {
       elapsedLabel.textContent = survival ? "Survived" : "Time elapsed";
       elapsedStat.title = survival ? "Elapsed survival time" : "Elapsed sim time";
     }
+    const strikesStat = document.getElementById("hud-strikes-stat");
     if (lostStat) {
       lostStat.hidden = !survival;
       lostStat.style.display = survival ? "" : "none";
+    }
+    if (strikesStat) {
+      strikesStat.hidden = !survival;
+      strikesStat.style.display = survival ? "" : "none";
     }
     this.refreshGoals();
   }
@@ -64,6 +69,9 @@ export class Hud {
         </div>
         <div class="stat stat-lost" id="hud-lost-stat" title="Riders lost per minute" hidden>
           <div class="v" id="hud-lost"></div><div class="k" id="hud-lost-label">Lost</div>
+        </div>
+        <div class="stat stat-strikes" id="hud-strikes-stat" title="Abandoned demand surges (5 max before collapse)" hidden>
+          <div class="v" id="hud-strikes">0 / 5</div><div class="k" id="hud-strikes-label">Strikes</div>
         </div>
         <div class="stat" title="Trains owned"><div class="v" id="hud-trains"></div><div class="k">Trains</div></div>
       </div>
@@ -262,26 +270,45 @@ export class Hud {
     const lostStat = document.getElementById("hud-lost-stat");
     const lostEl = document.getElementById("hud-lost");
     const lostLabel = document.getElementById("hud-lost-label");
+    const strikesStat = document.getElementById("hud-strikes-stat");
+    const strikesEl = document.getElementById("hud-strikes");
+
     if (!survival) {
       if (lostStat) {
         lostStat.hidden = true;
         lostStat.style.display = "none";
         lostStat.classList.remove("warn", "critical");
       }
-    } else if (lostStat && lostEl && lostLabel) {
-      lostStat.hidden = false;
-      lostStat.style.display = "";
-      const rate = lostRatePerMin(s);
-      const progress = breachProgress(s);
-      const pressureCfg = getPressureConfig(s);
-      const threshold = pressureCfg.rateThresholdPerMin;
-      lostLabel.textContent = "Lost / min";
-      lostEl.textContent = fmtInt(rate);
-      lostStat.title = progress > 0
-        ? `Riders lost per sim-minute (threshold ${threshold}). Collapse in ${fmtSimDuration(pressureCfg.collapseGraceSec - s.breachTimer)} if overcrowding continues.`
-        : `Riders lost per sim-minute over the last ${pressureCfg.lostWindowSec}s (threshold ${threshold})`;
-      lostStat.classList.toggle("warn", rate >= threshold * 0.5);
-      lostStat.classList.toggle("critical", progress >= 0.5);
+      if (strikesStat) {
+        strikesStat.hidden = true;
+        strikesStat.style.display = "none";
+        strikesStat.classList.remove("warn", "critical");
+      }
+    } else {
+      if (lostStat && lostEl && lostLabel) {
+        lostStat.hidden = false;
+        lostStat.style.display = "";
+        const rate = lostRatePerMin(s);
+        const progress = breachProgress(s);
+        const pressureCfg = getPressureConfig(s);
+        const threshold = pressureCfg.rateThresholdPerMin;
+        lostLabel.textContent = "Lost / min";
+        lostEl.textContent = fmtInt(rate);
+        lostStat.title = progress > 0
+          ? `Riders lost per sim-minute (threshold ${threshold}). Collapse in ${fmtSimDuration(pressureCfg.collapseGraceSec - s.breachTimer)} if pressure continues.`
+          : `Riders lost per sim-minute (threshold ${threshold})`;
+        lostStat.classList.toggle("warn", rate >= threshold * 0.5);
+        lostStat.classList.toggle("critical", progress >= 0.5);
+      }
+      if (strikesStat && strikesEl) {
+        strikesStat.hidden = false;
+        strikesStat.style.display = "";
+        const count = s.surgeState?.abandonedCount || 0;
+        strikesEl.textContent = `${count} / 5`;
+        strikesStat.title = `Abandoned demand surges: ${count} of 5 max strikes before collapse`;
+        strikesStat.classList.toggle("warn", count >= 3 && count < 4);
+        strikesStat.classList.toggle("critical", count >= 4);
+      }
     }
     document.getElementById("hud-trains").textContent = Object.keys(s.trains).length;
     document.getElementById("hud-fare").textContent = `${s.maps[s.currentMap].fareMult.toFixed(1)}×`;

@@ -400,7 +400,10 @@ function updateNetworkPressure(state, dt) {
     }
     if (state.breachTimer >= collapseGraceSec) {
       state.gameOver = true;
-      state.collapseReason = "network";
+      const surgePenalty = getTotalAbandonedPenalty(state);
+      state.collapseReason = (surgePenalty >= rateThresholdPerMin * 0.6 || (state.surgeState?.abandonedCount || 0) >= 5)
+        ? "surge"
+        : "network";
       state.survivalTime = state.simTime;
       emit("networkCollapse");
     }
