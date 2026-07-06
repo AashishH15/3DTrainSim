@@ -15,7 +15,8 @@ export function openModePicker(game, onPick) {
   backdrop.id = "mode-picker-backdrop";
   const best = formatSurvivalBest();
 
-  const cards = Object.values(GAME_MODES).map((m) => `
+  const modeOrder = [GAME_MODES.survival, GAME_MODES.tycoon];
+  const cards = modeOrder.map((m) => `
     <button type="button" class="mode-card" data-mode="${m.id}">
       <div class="mode-card-head">
         ${icon(m.id === "survival" ? "close" : "medal")}
@@ -37,6 +38,8 @@ export function openModePicker(game, onPick) {
       <div class="mode-cards">${cards}</div>
     </div>
   `;
+  backdrop.querySelector(".mode-picker-modal .sub").textContent =
+    "Tycoon is relaxed creative building. Survival is the harder scored run with badges and the global leaderboard.";
   document.getElementById("hud").appendChild(backdrop);
 
   backdrop.querySelectorAll("[data-mode]").forEach((b) =>

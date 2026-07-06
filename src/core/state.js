@@ -11,7 +11,7 @@ export function metroDemand(pop) {
   return +(2 + pop * 0.45).toFixed(1);
 }
 
-export function freshState(gameMode = "tycoon") {
+export function freshState(gameMode = "survival") {
   const usaNodes = {};
   for (const m of USA_METROS) {
     const [x, z] = projectMetro(m);
@@ -119,7 +119,7 @@ export function loadState() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (s?.version !== 1) return null;
-    if (!s.gameMode) s.gameMode = "tycoon";
+    if (!s.gameMode) s.gameMode = "survival";
     if (!s.completedGoals) s.completedGoals = [];
     if (s.victoryShown == null) s.victoryShown = false;
     if (s.totalLost == null) s.totalLost = 0;

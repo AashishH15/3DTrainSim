@@ -120,8 +120,8 @@ export const GAME_MODES = {
   tycoon: {
     id: "tycoon",
     name: "Tycoon",
-    tagline: "Build an empire",
-    blurb: "Milestone goals, bankruptcy risk, modest station crowding. Expand across the US and win.",
+    tagline: "Creative rail sandbox",
+    blurb: "Low-risk building mode with relaxed pressure, milestone goals, and room to make the network you want.",
     goals: true,
     bankruptcy: true,
     networkPressure: false,
@@ -143,8 +143,8 @@ export const GAME_MODES = {
   survival: {
     id: "survival",
     name: "Survival",
-    tagline: "Outrun the city",
-    blurb: "Demand escalates for a long run. Keep Lost/min low or the network collapses — survived time is your score.",
+    tagline: "Scored leaderboard run",
+    blurb: "Harder mode with demand surges, Lost/min pressure, badges, and the global leaderboard. Survive as long as you can.",
     goals: false,
     bankruptcy: false,
     networkPressure: true,
@@ -169,12 +169,12 @@ export const GAME_MODES = {
 };
 
 export function getGameMode(state) {
-  const id = state?.gameMode ?? "tycoon";
-  return GAME_MODES[id] ?? GAME_MODES.tycoon;
+  const id = state?.gameMode ?? "survival";
+  return GAME_MODES[id] ?? GAME_MODES.survival;
 }
 
 export function isSurvivalMode(state) {
-  return (state?.gameMode ?? "tycoon") === "survival";
+  return (state?.gameMode ?? "survival") === "survival";
 }
 
 /** Rolling lost-rate collapse mechanic (Survival only). */

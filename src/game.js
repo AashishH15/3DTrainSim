@@ -31,7 +31,7 @@ const INTRO_KEY = "railEmpire.introSeen";
 export class Game {
   constructor() {
     const loaded = loadState();
-    this.state = loaded ?? freshState("tycoon");
+    this.state = loaded ?? freshState("survival");
     guardStateIntegrity(this.state);
     this.mode = "select";
     this.trackStart = null;      // nodeId while drawing track
