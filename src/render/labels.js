@@ -3,20 +3,21 @@ import * as THREE from "three";
 const FONT = `"Outfit Variable", "Segoe UI", sans-serif`;
 
 // Canvas-based text sprite. `lock: true` draws a small vector padlock before the text.
-export function makeLabel(text, { size = 6, color = "#ffffff", bg = "rgba(12,17,25,0.92)", lock = false, surgeTag = "" } = {}) {
+export function makeLabel(text, { size = 6, color = "#ffffff", bg = "rgba(12,17,25,0.92)", lock = false, surgeTag = "", measureSurgeTag = "" } = {}) {
   // 2x Supersampling factor for razor-sharp vector text on all monitor resolutions
   const scaleFactor = 2;
   const pad = 24 * scaleFactor;
   const fontPx = 80 * scaleFactor; // 160px high resolution font canvas
   const lockW = lock ? fontPx * 0.85 : 0;
   const fullText = surgeTag ? `${text} · ${surgeTag}` : text;
+  const measureText = measureSurgeTag ? fullText.replace(surgeTag, measureSurgeTag) : fullText;
   const isLost = surgeTag.includes("LOST");
   const isSurge = Boolean(surgeTag);
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   ctx.font = `700 ${fontPx}px ${FONT}`;
-  const textW = Math.ceil(ctx.measureText(fullText).width);
+  const textW = Math.ceil(ctx.measureText(measureText).width);
   const w = textW + lockW + pad * 2;
   const h = fontPx + pad * 1.5;
   canvas.width = w;

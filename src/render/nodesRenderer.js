@@ -39,6 +39,55 @@ export class NodesRenderer {
     return node.station ? "station" : node.unlocked ? "unlocked" : "locked";
   }
 
+  formatTimer(sec) {
+    const s = Math.max(0, Math.ceil(sec || 0));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+  }
+
+  surgeTagFor(node) {
+    if (node.vipSurgeActive) return `VIP SURGE`;
+    if (node.surgeActive) return `DEMAND SURGE ${this.formatTimer(node.surgeTimer)}`;
+    if (node.surgeFrustrated) return `+12 LOST/MIN ${this.formatTimer(node.frustrationTimer)}`;
+    if (node.crowded) return `OVERCROWDED`;
+    return "";
+  }
+
+  surgeModeFor(node) {
+    if (node.vipSurgeActive) return "vip";
+    if (node.surgeActive) return "surge";
+    if (node.surgeFrustrated) return "frustrated";
+    if (node.crowded) return "crowded";
+    return "";
+  }
+
+  measureTagFor(node) {
+    if (node.surgeActive) return "DEMAND SURGE 88:88";
+    if (node.surgeFrustrated) return "+12 LOST/MIN 88:88";
+    return this.surgeTagFor(node);
+  }
+
+  disposeLabel(label) {
+    label?.material?.map?.dispose();
+    label?.material?.dispose();
+  }
+
+  replaceLabel(node, mesh) {
+    if (!mesh.label || !mesh.labelOptions) return;
+    const label = this.tagLabel(makeLabel(node.name, {
+      ...mesh.labelOptions,
+      surgeTag: this.surgeTagFor(node),
+      measureSurgeTag: this.measureTagFor(node),
+    }));
+    label.position.copy(mesh.label.position);
+    mesh.group.remove(mesh.label);
+    this.disposeLabel(mesh.label);
+    mesh.group.add(label);
+    mesh.label = label;
+    mesh.surgeTagKey = this.surgeTagFor(node);
+  }
+
   rebuildNode(node) {
     const status = this.statusOf(node);
     const existing = this.meshes[node.id];
@@ -55,15 +104,8 @@ export class NodesRenderer {
 
     const color = this.nodeColor(node);
     const demandR = (0.55 + node.demand * 0.05) * s;
-    const surgeTag = node.vipSurgeActive
-      ? `VIP SURGE`
-      : node.surgeActive
-        ? `DEMAND SURGE`
-        : node.surgeFrustrated
-          ? `+12 LOST/MIN`
-          : node.crowded
-            ? `OVERCROWDED`
-            : "";
+    const surgeTag = this.surgeTagFor(node);
+    const measureSurgeTag = this.measureTagFor(node);
 
     // Pulsing 3D surge beacon ring around node ground
     const surgeBeacon = new THREE.Mesh(
@@ -76,6 +118,8 @@ export class NodesRenderer {
     group.add(surgeBeacon);
 
     let stationRing = null;
+    let label = null;
+    let labelOptions = null;
 
     if (status === "locked") {
       const dot = new THREE.Mesh(
@@ -84,9 +128,10 @@ export class NodesRenderer {
       );
       dot.position.y = 0.09 * s;
       group.add(dot);
-      const lock = this.tagLabel(makeLabel(node.name, { size: this.cfg.labelSize * 0.8, color: "#aab4c2", lock: true, surgeTag }));
-      lock.position.y = 1.6 * s;
-      group.add(lock);
+      labelOptions = { size: this.cfg.labelSize * 0.8, color: "#aab4c2", lock: true };
+      label = this.tagLabel(makeLabel(node.name, { ...labelOptions, surgeTag, measureSurgeTag }));
+      label.position.y = 1.6 * s;
+      group.add(label);
     } else if (status === "unlocked") {
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(demandR, 0.1 * s, 6, 20),
@@ -101,7 +146,8 @@ export class NodesRenderer {
       );
       dot.position.y = 0.07 * s;
       group.add(dot);
-      const label = this.tagLabel(makeLabel(node.name, { size: this.cfg.labelSize * 0.85, color: "#dfe6ee", surgeTag }));
+      labelOptions = { size: this.cfg.labelSize * 0.85, color: "#dfe6ee" };
+      label = this.tagLabel(makeLabel(node.name, { ...labelOptions, surgeTag, measureSurgeTag }));
       label.position.y = 1.7 * s;
       group.add(label);
     } else {
@@ -136,7 +182,8 @@ export class NodesRenderer {
       roof.rotation.y = Math.PI / 4;
       roof.position.set(demandR * 0.75, 0.98 * s, -demandR * 0.75);
       group.add(roof);
-      const label = this.tagLabel(makeLabel(node.name, { size: this.cfg.labelSize, color: "#ffffff", surgeTag }));
+      labelOptions = { size: this.cfg.labelSize, color: "#ffffff" };
+      label = this.tagLabel(makeLabel(node.name, { ...labelOptions, surgeTag, measureSurgeTag }));
       label.position.y = 2.0 * s;
       group.add(label);
 
@@ -161,7 +208,16 @@ export class NodesRenderer {
     group.add(pick);
 
     this.bundle.pickables.add(group);
-    this.meshes[node.id] = { group, status, ring: stationRing, surgeBeacon, surgeTagKey: surgeTag };
+    this.meshes[node.id] = {
+      group,
+      status,
+      ring: stationRing,
+      surgeBeacon,
+      surgeTagKey: surgeTag,
+      surgeModeKey: this.surgeModeFor(node),
+      label,
+      labelOptions,
+    };
   }
 
   // Called every frame: grows the waiting bar with queued passengers and updates surge indicators.
@@ -171,19 +227,15 @@ export class NodesRenderer {
       const m = this.meshes[node.id];
       if (!m) continue;
 
-      const currentSurgeTag = node.vipSurgeActive
-        ? `VIP SURGE`
-        : node.surgeActive
-          ? `DEMAND SURGE`
-          : node.surgeFrustrated
-            ? `+12 LOST/MIN`
-            : node.crowded
-              ? `OVERCROWDED`
-              : "";
+      const currentSurgeTag = this.surgeTagFor(node);
+      const currentSurgeMode = this.surgeModeFor(node);
 
-      if (m.surgeTagKey !== currentSurgeTag) {
+      if (m.status !== this.statusOf(node) || m.surgeModeKey !== currentSurgeMode) {
         this.rebuildNode(node);
         continue;
+      }
+      if (m.surgeTagKey !== currentSurgeTag) {
+        this.replaceLabel(node, m);
       }
 
       if (m.surgeBeacon) {
