@@ -53,8 +53,10 @@ export class Inspector {
     const surgeStatus = node.surgeActive
       ? [`🔥 Active (${node.surgeTimer || 0}s)`, "warn"]
       : node.surgeFrustrated
-        ? ["⚠️ Expired (+12 Lost/min)", "crowded"]
-        : null;
+        ? [`⚠️ Frustrated (+12 Lost/min · ${node.frustrationTimer || 0}s left)`, "crowded"]
+        : node.surgeAbandoned
+          ? ["❌ Abandoned (+4 Lost/min permanent floor)", "crowded"]
+          : null;
 
     const rows = [
       ["Status", status],

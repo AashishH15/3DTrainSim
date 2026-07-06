@@ -56,7 +56,7 @@ export class NodesRenderer {
     const color = this.nodeColor(node);
     const demandR = (0.55 + node.demand * 0.05) * s;
     const surgeTag = node.surgeActive
-      ? `🔥 ${node.surgeTimer || 0}s`
+      ? `🔥 DEMAND SURGE`
       : node.surgeFrustrated
         ? `⚠️ +12 LOST/MIN`
         : "";
@@ -168,7 +168,7 @@ export class NodesRenderer {
       if (!m) continue;
 
       const currentSurgeTag = node.surgeActive
-        ? `🔥 ${node.surgeTimer || 0}s`
+        ? `🔥 DEMAND SURGE`
         : node.surgeFrustrated
           ? `⚠️ +12 LOST/MIN`
           : "";

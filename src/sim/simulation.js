@@ -267,6 +267,12 @@ function updateTrains(state, simDt) {
   }
 }
 
+export function computeFareDistance(rawDist) {
+  // Sub-linear distance fare scaling: short trips earn normal fares, but ultra-long
+  // transcontinental trips don't scale linearly into tens of millions.
+  return Math.pow(Math.max(1, rawDist), 0.70) * 2.5;
+}
+
 function handleStop(state, train, nodeId) {
   const ms = state.maps[train.map];
   const node = ms.nodes[nodeId];
@@ -280,7 +286,7 @@ function handleStop(state, train, nodeId) {
   for (const g of train.passengers) {
     if (g.dest === nodeId) {
       delivered += g.count;
-      revenue += g.count * g.fareDist * fareFor(mapKey) * tier.fareMult * ms.fareMult;
+      revenue += g.count * computeFareDistance(g.fareDist) * fareFor(mapKey) * tier.fareMult * ms.fareMult;
       continue;
     }
     // Transfer: get off at the best stop this train serves toward their destination.
@@ -331,12 +337,14 @@ export function incomePerMin(state) {
   return state.incomeWindow.reduce((s, [, v]) => s + v, 0);
 }
 
-// Rolling riders lost per minute (trailing window; lagging indicator vs patienceSec).
+// Rolling riders lost per minute (trailing window + permanent floor from abandoned surges).
 export function lostRatePerMin(state) {
   const { lostWindowSec } = getPressureConfig(state);
   const cutoff = state.simTime - lostWindowSec;
   state.lostWindow = state.lostWindow.filter(([t]) => t >= cutoff);
-  return state.lostWindow.reduce((s, [, v]) => s + v, 0);
+  const rolling = state.lostWindow.reduce((s, [, v]) => s + v, 0);
+  const permanentFloor = (state.surgeState?.abandonedCount || 0) * 4;
+  return Math.round(rolling + permanentFloor);
 }
 
 function updateNetworkPressure(state, dt) {

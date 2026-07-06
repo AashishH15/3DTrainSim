@@ -9,8 +9,10 @@ function getRandomSurgeIntervalSec() {
   return 120 + Math.random() * 480;
 }
 
-const SURGE_DURATION_SEC = 120; // 120 seconds to connect
-const SURGE_REWARD = 250000;    // $250k grant for fulfilling surge
+const MAX_CONCURRENT_SURGES = 2;     // Cap total active/frustrated surges to 2 max
+const SURGE_DURATION_SEC = 120;      // 120 seconds to connect and claim reward
+const FRUSTRATED_DECAY_SEC = 240;    // 4 minutes (240s) of frustration penalty before surge decays out
+const SURGE_REWARD = 250000;         // $250k grant for fulfilling active surge
 const FRUSTRATION_LOST_PER_MIN = 12; // 12 lost passengers per minute per unserved surge city
 
 export function updateSurges(state, dt) {
@@ -28,38 +30,42 @@ export function updateSurges(state, dt) {
   const ms = state.maps[currentMap];
   if (!ms) return;
 
-  // 1. Check if it's time to spawn a new surge
+  // 1. Check if it's time to spawn a new surge (guarded by MAX_CONCURRENT_SURGES)
   if (state.simTime >= ss.nextSurgeTime) {
     ss.nextSurgeTime = state.simTime + getRandomSurgeIntervalSec();
 
-    // Pick a random unbuilt node that doesn't currently have an active surge
-    const candidateNodes = Object.values(ms.nodes).filter(
-      (n) => !n.station && !ss.surges[n.id]
-    );
+    const activeSurgeCount = Object.keys(ss.surges).length;
+    if (activeSurgeCount < MAX_CONCURRENT_SURGES) {
+      // Pick a random unbuilt node that doesn't currently have an active surge
+      const candidateNodes = Object.values(ms.nodes).filter(
+        (n) => !n.station && !ss.surges[n.id]
+      );
 
-    if (candidateNodes.length > 0) {
-      const picked = candidateNodes[Math.floor(Math.random() * candidateNodes.length)];
-      ss.surges[picked.id] = {
-        mapKey: currentMap,
-        timer: SURGE_DURATION_SEC,
-        frustrated: false,
-        name: picked.name,
-      };
-      picked.surgeActive = true;
-      picked.surgeTimer = SURGE_DURATION_SEC;
-      picked.surgeFrustrated = false;
+      if (candidateNodes.length > 0) {
+        const picked = candidateNodes[Math.floor(Math.random() * candidateNodes.length)];
+        ss.surges[picked.id] = {
+          mapKey: currentMap,
+          timer: SURGE_DURATION_SEC,
+          frustrated: false,
+          frustrationTimer: FRUSTRATED_DECAY_SEC,
+          name: picked.name,
+        };
+        picked.surgeActive = true;
+        picked.surgeTimer = SURGE_DURATION_SEC;
+        picked.surgeFrustrated = false;
 
-      const surgeNodeId = picked.id;
-      const surgeMapKey = currentMap;
-      emit("toast", {
-        msg: `🔥 DEMAND SURGE: ${picked.name} demands transit connection within 120s!`,
-        kind: "bad",
-        key: `surge:${picked.id}`,
-        action: {
-          label: "View City",
-          onClick: () => window.game?.panToNode(surgeNodeId, surgeMapKey),
-        },
-      });
+        const surgeNodeId = picked.id;
+        const surgeMapKey = currentMap;
+        emit("toast", {
+          msg: `🔥 DEMAND SURGE: ${picked.name} demands transit connection within 120s!`,
+          kind: "bad",
+          key: `surge:${picked.id}`,
+          action: {
+            label: "View City",
+            onClick: () => window.game?.panToNode(surgeNodeId, surgeMapKey),
+          },
+        });
+      }
     }
   }
 
@@ -105,6 +111,7 @@ export function updateSurges(state, dt) {
 
       if (surge.timer <= 0) {
         surge.frustrated = true;
+        surge.frustrationTimer = FRUSTRATED_DECAY_SEC;
         node.surgeActive = false;
         node.surgeFrustrated = true;
 
@@ -121,11 +128,27 @@ export function updateSurges(state, dt) {
         });
       }
     } else {
-      // Frustrated penalty: generates lost riders directly into lostWindow each tick
+      // Frustrated state: generates lost riders directly into lostWindow each tick
+      surge.frustrationTimer -= dt;
+      node.frustrationTimer = Math.max(0, Math.ceil(surge.frustrationTimer));
       const lostThisTick = FRUSTRATION_LOST_PER_MIN * (dt / 60);
       state.totalLost += lostThisTick;
       noteSurvivalLost(state);
       state.lostWindow.push([state.simTime, lostThisTick]);
+
+      // If frustration decay timer expires (4 minutes): citizens give up and surge is abandoned
+      if (surge.frustrationTimer <= 0) {
+        ss.abandonedCount = (ss.abandonedCount || 0) + 1;
+        emit("toast", {
+          msg: `❌ Citizens in ${node.name} gave up! Permanent +4 Lost/min baseline floor added.`,
+          kind: "bad",
+          key: `surge-abandoned:${nodeId}`,
+        });
+        node.surgeActive = false;
+        node.surgeFrustrated = false;
+        node.surgeAbandoned = true;
+        delete ss.surges[nodeId];
+      }
     }
   }
 }

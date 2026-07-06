@@ -149,23 +149,20 @@ export const GAME_MODES = {
     bankruptcy: false,
     networkPressure: true,
     demandScaleMult: 1.75,
-    // Compound growth back-solved for starter ring (6 stations, 1× Tier I, USA):
-    // Survived min ~10 ≈ ×1.21 demand (manageable), min ~25 ≈ ×1.61 (overcrowding onset
-    // with ridership growth), min ~30 ≈ ×1.76 (visible struggle). 1 sim-day = 240 sim-s.
     growth: {
       shape: "compound",
       perDayBase: 0.078,
       perThousandServed: 0.08,
       maxMultiplier: 1e6,
-      costGrowthPerDay: 0.035,
+      costGrowthPerDay: 0.05,
     },
     crowding: {
-      platformBase: { usa: 60, nyc: 40 },
-      platformPerDemand: 4,
+      platformBase: { usa: 150, nyc: 100 },
+      platformPerDemand: 12,
       usePopScale: true,
       platformPop2Exp: 0.75,
-      platformPopMult: 12,
-      minTrainMultiple: 1.0,
+      platformPopMult: 45,
+      minTrainMultiple: 1.5,
     },
     pressure: PRESSURE_DEFAULTS,
   },
