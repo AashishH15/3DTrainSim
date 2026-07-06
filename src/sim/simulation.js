@@ -1,4 +1,4 @@
-import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, getGameMode, getPressureConfig, networkPressureEnabled, demandElasticity, getRiderPatienceSec } from "../core/config.js";
+import { TIERS, TRACK_TYPES, ECON, SIM, CROWDING, getGameMode, getPressureConfig, networkPressureEnabled, demandElasticity, getRiderPatienceSec, fmtMoney } from "../core/config.js";
 import { shortestPath, cachedDijkstra } from "../core/graph.js";
 import { effectiveDemand, platformCapacity, costMultiplier } from "../core/economy.js";
 import { noteSurvivalLost, noteSurvivalOvercrowding, tickSurvivalRunStats } from "../core/survivalBadges.js";
@@ -90,6 +90,49 @@ function spawnPassengers(state, dt) {
 }
 
 function economyTick(state, dt) {
+  if (state.activeBond) {
+    state.activeBond.timeRemaining -= dt;
+    if (state.activeBond.timeRemaining <= 0) {
+      if (state.cash >= state.activeBond.principal) {
+        state.cash -= state.activeBond.principal;
+        const paid = state.activeBond.principal;
+        state.activeBond = null;
+        emit("toast", {
+          msg: `Bond Repaid: ${fmtMoney(paid)} remaining principal automatically paid off!`,
+          kind: "good"
+        });
+      } else {
+        if (!state.surgeState) {
+          state.surgeState = { nextSurgeTime: 120, surges: {}, abandonedNodes: {}, abandonedCount: 0 };
+        }
+        if (!state.surgeState.abandonedNodes) {
+          state.surgeState.abandonedNodes = {};
+        }
+        const defaultKey = `bond_default_${Date.now()}`;
+        state.surgeState.abandonedNodes[defaultKey] = {
+          penalty: 5,
+          delivered: 0,
+          connected: false,
+          name: "Bond Default",
+          mapKey: "usa"
+        };
+        state.surgeState.abandonedCount = Object.keys(state.surgeState.abandonedNodes).length;
+        state.activeBond.timeRemaining = 300; // Extend by 5 sim-minutes (300 seconds)
+        emit("toast", {
+          msg: `BOND DEFAULT! Suffer +1 Strike. Loan extended 5 minutes.`,
+          kind: "bad"
+        });
+
+        if (state.surgeState.abandonedCount >= 5) {
+          state.gameOver = true;
+          state.collapseReason = "surge";
+          state.survivalTime = state.simTime;
+          emit("networkCollapse");
+        }
+      }
+    }
+  }
+
   dropoutPass(state, "usa", state.maps.usa, dt);
   dropoutPass(state, "nyc", state.maps.nyc, dt);
   updateSurges(state, dt);
@@ -299,6 +342,19 @@ function handleStop(state, train, nodeId) {
   train.passengers = staying;
 
   if (delivered > 0) {
+    let bondTax = 0;
+    if (state.activeBond) {
+      bondTax = Math.round(revenue * state.activeBond.taxRate);
+      revenue -= bondTax;
+      state.activeBond.principal = Math.max(0, state.activeBond.principal - bondTax);
+      if (state.activeBond.principal <= 0) {
+        state.activeBond = null;
+        emit("toast", {
+          msg: "🎉 Transit Bond fully paid off through passenger taxes!",
+          kind: "good"
+        });
+      }
+    }
     state.cash += revenue;
     state.totalDelivered += delivered;
     state.totalRevenue += revenue;

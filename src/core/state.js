@@ -67,6 +67,7 @@ export function freshState(gameMode = "tycoon") {
     },
     trains: {},
     nextTrainId: 1,
+    activeBond: null,
     incomeWindow: [], // [simTime, delta] samples for $/min display
     lostWindow: [], // [simTime, count] samples for lost/min when network pressure is on
     breachTimer: 0, // sustained lost-rate breach accumulator (sim-seconds)
@@ -141,6 +142,9 @@ export function loadState() {
         lastLostAt: 0,
         maxLostFreeStreak: 0,
       };
+    }
+    if (s.activeBond === undefined) {
+      s.activeBond = null;
     }
     for (const mk of ["usa", "nyc"]) {
       if (s.maps[mk].fareMult == null) s.maps[mk].fareMult = 1.0;

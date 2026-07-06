@@ -1,31 +1,46 @@
 import { TRACK_TYPES, ECON, WATER_COST_MULT, unlockCost, TIERS, getGameMode } from "./config.js";
 
-export function trackCost(mapKey, type, length, waterFrac = 0) {
+export function trackCost(mapKey, type, length, waterFrac = 0, state = null) {
   const base = TRACK_TYPES[type].costPerUnit[mapKey] * length;
   const mult = 1 + waterFrac * (WATER_COST_MULT - 1);
-  return Math.round(base * mult);
+  const costMult = state ? costMultiplier(state) : 1;
+  return Math.round(base * mult * costMult);
 }
 
-export function edgeBuildCost(mapKey, edge) {
-  return trackCost(mapKey, edge.type, edge.length, edge.waterFrac);
+export function edgeBuildCost(mapKey, edge, state = null) {
+  return trackCost(mapKey, edge.type, edge.length, edge.waterFrac, state);
 }
 
-export function upgradeCost(mapKey, edge, newType) {
-  const oldCost = edgeBuildCost(mapKey, edge);
-  const newCost = trackCost(mapKey, newType, edge.length, edge.waterFrac);
+export function upgradeCost(mapKey, edge, newType, state = null) {
+  const oldCost = edgeBuildCost(mapKey, edge, state);
+  const newCost = trackCost(mapKey, newType, edge.length, edge.waterFrac, state);
   return Math.max(0, Math.round((newCost - oldCost) * (1 + ECON.upgradeSurcharge)));
 }
 
-export function stationCost(mapKey, node) {
-  return Math.round(ECON.stationCostBase[mapKey] * (1 + node.demand * ECON.stationDemandFactor));
+export function stationCost(mapKey, node, state = null) {
+  const base = ECON.stationCostBase[mapKey] * (1 + node.demand * ECON.stationDemandFactor);
+  const costMult = state ? costMultiplier(state) : 1;
+  return Math.round(base * costMult);
 }
 
-export function nodeUnlockCost(node) {
-  return unlockCost(node.pop ?? 1);
+export function nodeUnlockCost(node, state = null) {
+  const base = unlockCost(node.pop ?? 1);
+  const costMult = state ? costMultiplier(state) : 1;
+  return Math.round(base * costMult);
 }
 
-export function bulldozeRefund(mapKey, edge) {
-  return Math.round(edgeBuildCost(mapKey, edge) * 0.25);
+export function bulldozeRefund(mapKey, edge, state = null) {
+  return Math.round(edgeBuildCost(mapKey, edge, state) * 0.25);
+}
+
+export function trainPurchaseCost(tier, state = null) {
+  const base = TIERS[tier].price;
+  const costMult = state ? costMultiplier(state) : 1;
+  return Math.round(base * costMult);
+}
+
+export function trainSellRefund(tier, state = null) {
+  return Math.round(trainPurchaseCost(tier, state) * 0.5);
 }
 
 /** Time-only demand multiplier from elapsed sim-days. */
@@ -36,12 +51,35 @@ export function timeGrowthFactor(growth, days) {
   return 1 + growth.perDayBase * days;
 }
 
-/** Inflation multiplier on track maintenance and train operating costs (Survival mode). */
 export function costMultiplier(state) {
+  if (!state) return 1;
   const g = getGameMode(state).growth;
   if (!g.costGrowthPerDay) return 1;
+  const gracePeriodDays = 2.5; // 10 sim-minutes grace
   const days = state.simTime / 240;
-  return Math.min(6, Math.pow(1 + g.costGrowthPerDay, days));
+  const effectiveDays = Math.max(0, days - gracePeriodDays);
+  const trainCount = Object.keys(state.trains || {}).length;
+  // Hybrid Formula: 1 + (trains * 0.1) + (1.2 * sqrt(effectiveDays))
+  return 1 + (trainCount * 0.1) + (1.2 * Math.sqrt(effectiveDays));
+}
+
+export function calculateBondTaxRate(principal) {
+  const x = principal / 1000000; // in Millions
+  if (x <= 0.5) return 0.10;
+  if (x <= 1.0) {
+    const pct = (x - 0.5) / 0.5;
+    return 0.10 + pct * 0.08;
+  }
+  if (x <= 2.0) {
+    const pct = (x - 1.0) / 1.0;
+    return 0.18 + pct * 0.12;
+  }
+  if (x <= 3.0) {
+    const pct = (x - 2.0) / 1.0;
+    return 0.30 + pct * 0.10;
+  }
+  const pct = Math.min(1.0, (x - 3.0) / 2.0);
+  return 0.40 + pct * 0.10;
 }
 
 /** Demand multiplier from elapsed time and passengers delivered at this stop. */

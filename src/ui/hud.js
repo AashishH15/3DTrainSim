@@ -1,4 +1,5 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, PRICING, getPressureConfig, isSurvivalMode, fmtSimDuration } from "../core/config.js";
+import { costMultiplier } from "../core/economy.js";
 import { incomePerMin, lostRatePerMin, breachProgress, displaySimTime } from "../sim/simulation.js";
 import { on } from "../core/bus.js";
 import { icon } from "./icons.js";
@@ -54,6 +55,7 @@ export class Hud {
       strikesStat.style.display = survival ? "" : "none";
     }
     this.refreshGoals();
+    this.renderToolbar();
   }
 
   buildTopbar() {
@@ -62,6 +64,10 @@ export class Hud {
     el.innerHTML = `
       <div class="topbar-stats">
         <div class="stat" title="Cash"><div class="v cash" id="hud-cash"></div><div class="k">Cash</div></div>
+        <div class="stat" id="hud-bond-pill" title="Active Transit Bond Tax" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 0.1rem 0.5rem; text-align: center; min-width: 5.5rem;">
+          <div class="v" id="hud-bond-tax-val" style="color: #ef4444; font-size: 0.95rem; font-weight: bold; font-family: monospace;">-20%</div>
+          <div class="k" id="hud-bond-time-val" style="font-size: 0.65rem; color: #fca5a5; font-family: monospace;">10:00</div>
+        </div>
         <div class="stat" title="Income per minute"><div class="v" id="hud-income"></div><div class="k">Income / min</div></div>
         <div class="stat" title="Passengers delivered"><div class="v" id="hud-pax"></div><div class="k">Passengers</div></div>
         <div class="stat" id="hud-elapsed-stat" title="Elapsed time">
@@ -170,24 +176,49 @@ export class Hud {
     const mapKey = this.game.state.currentMap;
     const t = (n) => TRACK_TYPES[n];
     const hex = (c) => `#${c.toString(16).padStart(6, "0")}`;
-    const perUnit = (n) => fmtMoney(t(n).costPerUnit[mapKey]);
+    const costMult = costMultiplier(this.game.state);
+    const perUnit = (n) => fmtMoney(Math.round(t(n).costPerUnit[mapKey] * costMult));
+    
+    const survival = isSurvivalMode(this.game.state);
+    const loanHtml = survival ? `
+      <div class="section">Loans</div>
+      <button class="btn tool" id="tool-bond" title="Issue a transit bond or payback early">
+        ${icon("coins")}
+        <span class="tool-label" id="tool-bond-label">Issue Bond</span>
+        <span class="price" id="tool-bond-price"></span>
+      </button>
+    ` : "";
+
     this.toolbar.innerHTML = `
       <div class="section">Tools</div>
       <button class="btn tool" data-mode="pan" title="Drag to move the map">${icon("pan")}<span class="tool-label"> Move</span> <span class="key">0</span></button>
       <button class="btn tool" data-mode="select" title="Inspect stops, track and trains">${icon("select")}<span class="tool-label"> Select</span> <span class="key">1</span></button>
       <button class="btn tool" data-mode="station" title="Build a station at a stop">${icon("station")}<span class="tool-label"> Station</span> <span class="key">2</span></button>
       <div class="section">Track</div>
-      <button class="btn tool" data-mode="track1" title="Tier I trains only"><span class="swatch" style="background:${hex(t(1).color)}"></span><span class="tool-label"> Standard</span> <span class="price">${perUnit(1)}/u</span><span class="key">3</span></button>
-      <button class="btn tool" data-mode="track2" title="Tier I and II trains"><span class="swatch" style="background:${hex(t(2).color)}"></span><span class="tool-label"> High-Speed</span> <span class="price">${perUnit(2)}/u</span><span class="key">4</span></button>
-      <button class="btn tool" data-mode="track3" title="Tier III maglev only"><span class="swatch" style="background:${hex(t(3).color)}"></span><span class="tool-label"> Maglev</span> <span class="price">${perUnit(3)}/u</span><span class="key">5</span></button>
+      <button class="btn tool" data-mode="track1" title="Tier I trains only"><span class="swatch" style="background:${hex(t(1).color)}"></span><span class="tool-label"> Standard</span> <span class="price" id="price-track1">${perUnit(1)}/u</span><span class="key">3</span></button>
+      <button class="btn tool" data-mode="track2" title="Tier I and II trains"><span class="swatch" style="background:${hex(t(2).color)}"></span><span class="tool-label"> High-Speed</span> <span class="price" id="price-track2">${perUnit(2)}/u</span><span class="key">4</span></button>
+      <button class="btn tool" data-mode="track3" title="Tier III maglev only"><span class="swatch" style="background:${hex(t(3).color)}"></span><span class="tool-label"> Maglev</span> <span class="price" id="price-track3">${perUnit(3)}/u</span><span class="key">5</span></button>
       <div class="section">Manage</div>
       <button class="btn tool" data-mode="bulldoze" title="Demolish track for a 25% refund">${icon("bulldoze")}<span class="tool-label"> Bulldoze</span> <span class="key">6</span></button>
       <button class="btn tool" id="tool-shop" title="Buy a new train">${icon("train")}<span class="tool-label"> Buy train</span> <span class="key">B</span></button>
+      ${loanHtml}
     `;
     this.toolbar.querySelectorAll("[data-mode]").forEach((b) =>
       b.addEventListener("click", () => this.game.setMode(b.dataset.mode))
     );
     this.toolbar.querySelector("#tool-shop").addEventListener("click", () => this.game.openShop());
+    
+    const bondBtn = this.toolbar.querySelector("#tool-bond");
+    if (bondBtn) {
+      bondBtn.addEventListener("click", () => {
+        const s = this.game.state;
+        if (s.activeBond) {
+          this.game.paybackBondEarly();
+        } else {
+          import("./bondModal.js").then((m) => m.openBondModal(this.game));
+        }
+      });
+    }
     this.syncToolbar();
   }
 
@@ -259,9 +290,34 @@ export class Hud {
     cashEl.textContent = fmtMoney(s.cash);
     cashEl.classList.toggle("neg", s.cash < 0);
     document.getElementById("hud-income").textContent = fmtMoney(incomePerMin(s));
+    
+    const bondPill = document.getElementById("hud-bond-pill");
+    const bondTaxVal = document.getElementById("hud-bond-tax-val");
+    const bondTimeVal = document.getElementById("hud-bond-time-val");
+    if (bondPill && bondTaxVal && bondTimeVal) {
+      if (s.activeBond) {
+        bondPill.style.display = "";
+        const pct = Math.round(s.activeBond.taxRate * 100);
+        bondTaxVal.textContent = `Tax: -${pct}%`;
+        bondTimeVal.textContent = fmtSimDuration(Math.max(0, Math.ceil(s.activeBond.timeRemaining)));
+        bondPill.title = `Active Transit Bond Tax. Remaining payback principal: ${fmtMoney(s.activeBond.principal)}`;
+      } else {
+        bondPill.style.display = "none";
+      }
+    }
+
     document.getElementById("hud-pax").textContent = fmtInt(s.totalDelivered);
     const elapsedEl = document.getElementById("hud-elapsed");
     if (elapsedEl) elapsedEl.textContent = fmtSimDuration(displaySimTime(s));
+
+    const costMult = costMultiplier(s);
+    const mapKey = s.currentMap;
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById(`price-track${i}`);
+      if (el) {
+        el.textContent = `${fmtMoney(Math.round(TRACK_TYPES[i].costPerUnit[mapKey] * costMult))}/u`;
+      }
+    }
 
     const survival = isSurvivalMode(s);
     const topbar = this.root.querySelector(".topbar");
@@ -310,6 +366,24 @@ export class Hud {
         strikesStat.classList.toggle("critical", count >= 4);
       }
     }
+
+    const bondBtn = document.getElementById("tool-bond");
+    const bondLabel = document.getElementById("tool-bond-label");
+    const bondPrice = document.getElementById("tool-bond-price");
+    if (bondBtn && bondLabel && bondPrice) {
+      if (s.activeBond) {
+        bondBtn.classList.add("active-warning");
+        bondLabel.textContent = "Pay Back";
+        bondPrice.textContent = `${fmtMoney(s.activeBond.principal)}`;
+        bondBtn.title = `Active Bond: Pay back ${fmtMoney(s.activeBond.principal)} early to remove tax.`;
+      } else {
+        bondBtn.classList.remove("active-warning");
+        bondLabel.textContent = "Issue Bond";
+        bondPrice.textContent = "";
+        bondBtn.title = "Issue a transit bond for emergency cash.";
+      }
+    }
+
     document.getElementById("hud-trains").textContent = Object.keys(s.trains).length;
     document.getElementById("hud-fare").textContent = `${s.maps[s.currentMap].fareMult.toFixed(1)}×`;
 

@@ -1,5 +1,5 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, ECON, cityMapsUnlocked, canAffordCityMap } from "../core/config.js";
-import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat } from "../core/economy.js";
+import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat, trainSellRefund, costMultiplier } from "../core/economy.js";
 import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
 
@@ -84,9 +84,9 @@ export class Inspector {
       ? `<div class="sub">Expand your network here to reach this metro — counts toward milestones.</div>`
       : "";
     if (!node.unlocked) {
-      actions.push(`<button class="btn primary" data-act="unlock">${icon("pin")} Expand network · ${fmtMoney(nodeUnlockCost(node))}</button>`);
+      actions.push(`<button class="btn primary" data-act="unlock">${icon("pin")} Expand network · ${fmtMoney(nodeUnlockCost(node, s))}</button>`);
     } else if (!node.station) {
-      actions.push(`<button class="btn primary" data-act="station">${icon("station")} Build station for ${fmtMoney(stationCost(mapKey, node))}</button>`);
+      actions.push(`<button class="btn primary" data-act="station">${icon("station")} Build station for ${fmtMoney(stationCost(mapKey, node, s))}</button>`);
     }
     if (mapKey === "usa" && node.rank === 1) {
       if (cityMapsUnlocked(s)) {
@@ -140,10 +140,10 @@ export class Inspector {
     const actions = [];
     for (const up of [2, 3]) {
       if (up > edge.type) {
-        actions.push(`<button class="btn" data-up="${up}">${icon("lightning")} Upgrade to ${TRACK_TYPES[up].name} for ${fmtMoney(upgradeCost(mapKey, edge, up))}</button>`);
+        actions.push(`<button class="btn" data-up="${up}">${icon("lightning")} Upgrade to ${TRACK_TYPES[up].name} for ${fmtMoney(upgradeCost(mapKey, edge, up, s))}</button>`);
       }
     }
-    actions.push(`<button class="btn danger" data-act="remove">${icon("bulldoze")} Demolish, refund ${fmtMoney(bulldozeRefund(mapKey, edge))}</button>`);
+    actions.push(`<button class="btn danger" data-act="remove">${icon("bulldoze")} Demolish, refund ${fmtMoney(bulldozeRefund(mapKey, edge, s))}</button>`);
 
     const onTrack = trainsOnEdge(s, mapKey, edgeId);
     const trainList = onTrack.length
@@ -191,6 +191,8 @@ export class Inspector {
     const ms = s.maps[train.map];
     const load = train.passengers.reduce((a, x) => a + x.count, 0);
     const routeNames = train.route.map((id) => ms.nodes[id]?.name ?? "?").join(" → ");
+    const opsCost = Math.round(tier.opsPerMin * costMultiplier(s));
+    const refundVal = trainSellRefund(train.tier, s);
     const rows = [
       ["Tier", tier.name],
       ["Speed", `${tier.speed[train.map]} u/s`],
@@ -198,7 +200,7 @@ export class Inspector {
       ["State", train.state],
       ["Route", train.route.length >= 2 ? routeNames : "not set"],
       ["Lifetime revenue", fmtMoney(train.revenueTotal)],
-      ["Operating cost", `${fmtMoney(tier.opsPerMin)}/min`],
+      ["Operating cost", `${fmtMoney(opsCost)}/min`],
     ];
 
     this.open(`
@@ -207,7 +209,7 @@ export class Inspector {
       ${rows.map(([k, v]) => `<div class="row"><span class="k">${k}</span><span>${v}</span></div>`).join("")}
       <div class="actions">
         <button class="btn primary" data-act="route">${icon("route")} Set route</button>
-        <button class="btn danger" data-act="sell">${icon("coins")} Sell for ${fmtMoney(tier.price * 0.5)}</button>
+        <button class="btn danger" data-act="sell">${icon("coins")} Sell for ${fmtMoney(refundVal)}</button>
       </div>
     `);
 

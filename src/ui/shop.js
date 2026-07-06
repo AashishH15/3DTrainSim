@@ -1,4 +1,5 @@
 import { TIERS, fmtMoney, fmtInt, fmtSimDuration, GAME_MODES } from "../core/config.js";
+import { trainPurchaseCost, costMultiplier } from "../core/economy.js";
 import { lostRatePerMin, displaySimTime } from "../sim/simulation.js";
 import { formatSurvivalBest, recordSurvivalBest } from "../core/survivalBest.js";
 import { badgesSummary, evaluateSurvivalBadges } from "../core/survivalBadges.js";
@@ -55,20 +56,25 @@ export function openShop(game) {
   backdrop.style.zIndex = "200";
   const mapKey = game.state.currentMap;
 
-  const cards = Object.values(TIERS).map((t) => `
-    <div class="tier-card">
-      ${icon(`tier${t.id}`)}
-      <h4>${t.name}</h4>
-      <div class="desc">${t.desc}</div>
-      <div class="spec"><span>Speed</span><b>${t.speed[mapKey]} u/s</b></div>
-      <div class="spec"><span>Capacity</span><b>${fmtInt(t.capacity)}</b></div>
-      <div class="spec"><span>Track</span><b>${t.minTrack}</b></div>
-      <div class="spec"><span>Fare bonus</span><b>×${t.fareMult}</b></div>
-      <div class="spec"><span>Running cost</span><b>${fmtMoney(t.opsPerMin)}/min</b></div>
-      <div class="price">${fmtMoney(t.price)}</div>
-      <button class="btn primary" data-tier="${t.id}">Buy</button>
-    </div>
-  `).join("");
+  const costMult = costMultiplier(game.state);
+  const cards = Object.values(TIERS).map((t) => {
+    const scaledPrice = trainPurchaseCost(t.id, game.state);
+    const scaledOps = Math.round(t.opsPerMin * costMult);
+    return `
+      <div class="tier-card">
+        ${icon(`tier${t.id}`)}
+        <h4>${t.name}</h4>
+        <div class="desc">${t.desc}</div>
+        <div class="spec"><span>Speed</span><b>${t.speed[mapKey]} u/s</b></div>
+        <div class="spec"><span>Capacity</span><b>${fmtInt(t.capacity)}</b></div>
+        <div class="spec"><span>Track</span><b>${t.minTrack}</b></div>
+        <div class="spec"><span>Fare bonus</span><b>×${t.fareMult}</b></div>
+        <div class="spec"><span>Running cost</span><b>${fmtMoney(scaledOps)}/min</b></div>
+        <div class="price">${fmtMoney(scaledPrice)}</div>
+        <button class="btn primary" data-tier="${t.id}">Buy</button>
+      </div>
+    `;
+  }).join("");
 
   backdrop.innerHTML = `
     <div class="modal">

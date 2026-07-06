@@ -634,3 +634,12 @@ body {
   border-left: 3px solid var(--accent);
 }
 
+#tool-bond.active-warning {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+#tool-bond.active-warning:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+

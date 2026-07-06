@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode, cityMapsUnlocked, canAffordCityMap } from "./core/config.js";
 import { freshState, loadState, saveState, clearSave, makeEdge, removeEdge } from "./core/state.js";
 import { edgeKey, nodeDist } from "./core/graph.js";
-import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund } from "./core/economy.js";
+import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, trainPurchaseCost, trainSellRefund } from "./core/economy.js";
 import { stepSimulation, assignRoute, revalidateTrains } from "./sim/simulation.js";
 import { waterFraction } from "./data/nycMap.js";
 import { createRenderer, createSceneBundle, tickWater } from "./render/scene.js";
@@ -353,7 +353,7 @@ export class Game {
   unlockNode(nodeId) {
     const node = this.activeMapState.nodes[nodeId];
     if (!node || node.unlocked) return;
-    const cost = nodeUnlockCost(node);
+    const cost = nodeUnlockCost(node, this.state);
     if (!this.spend(cost)) return;
     node.unlocked = true;
     this.renderers[this.state.currentMap].nodes.rebuildNode(node);
@@ -368,13 +368,13 @@ export class Game {
     if (!node || node.station) return;
     if (!node.unlocked) {
       // One click: unlock + station together.
-      const total = nodeUnlockCost(node) + stationCost(mapKey, node);
+      const total = nodeUnlockCost(node, this.state) + stationCost(mapKey, node, this.state);
       if (!this.spend(total)) return;
       node.unlocked = true;
       node.station = true;
       emit("toast", { msg: `${node.name} joined your network + station built (${fmtMoney(total)})`, kind: "good" });
     } else {
-      const cost = stationCost(mapKey, node);
+      const cost = stationCost(mapKey, node, this.state);
       if (!this.spend(cost)) return;
       node.station = true;
       emit("toast", { msg: `Station built at ${node.name} (${fmtMoney(cost)})`, kind: "good" });
@@ -401,7 +401,7 @@ export class Game {
     }
     const length = nodeDist(na, nb);
     const wf = mapKey === "nyc" ? waterFraction(na.x, na.z, nb.x, nb.z) : 0;
-    const cost = trackCost(mapKey, type, length, wf);
+    const cost = trackCost(mapKey, type, length, wf, this.state);
     if (!this.spend(cost)) return;
     makeEdge(this.state, mapKey, aId, bId, type);
     this.renderers[mapKey].track.sync();
@@ -417,7 +417,7 @@ export class Game {
     const mapKey = this.state.currentMap;
     const edge = this.activeMapState.edges[edgeId];
     if (!edge || newType <= edge.type) return;
-    const cost = upgradeCost(mapKey, edge, newType);
+    const cost = upgradeCost(mapKey, edge, newType, this.state);
     if (!this.spend(cost)) return;
     edge.type = newType;
     this.activeMapState.pathVersion++;
@@ -432,7 +432,7 @@ export class Game {
     const edge = this.activeMapState.edges[edgeId];
     if (!edge) return;
     permitStateWrites(() => {
-      this.state.cash += bulldozeRefund(mapKey, edge);
+      this.state.cash += bulldozeRefund(mapKey, edge, this.state);
     });
     removeEdge(this.state, mapKey, edgeId);
     this.renderers[mapKey].track.sync();
@@ -443,7 +443,8 @@ export class Game {
 
   buyTrain(tier) {
     const t = TIERS[tier];
-    if (!this.spend(t.price)) return false;
+    const cost = trainPurchaseCost(tier, this.state);
+    if (!this.spend(cost)) return false;
     return permitStateWrites(() => {
       const id = `t${this.state.nextTrainId}`;
       this.state.trains[id] = {
@@ -464,11 +465,49 @@ export class Game {
     const train = this.state.trains[trainId];
     if (!train) return;
     permitStateWrites(() => {
-      this.state.cash += TIERS[train.tier].price * 0.5;
+      const refund = trainSellRefund(train.tier, this.state);
+      this.state.cash += refund;
       delete this.state.trains[trainId];
     });
     this.inspector.close();
     emit("toast", { msg: "Train sold (50% refund)" });
+  }
+
+  issueBond(principal, taxRate) {
+    if (this.state.activeBond) {
+      emit("toast", { msg: "Already have an active bond!", kind: "bad" });
+      return false;
+    }
+    return permitStateWrites(() => {
+      this.state.cash += principal;
+      this.state.activeBond = {
+        principal,
+        taxRate,
+        timeRemaining: 600, // 10 minutes
+      };
+      emit("toast", {
+        msg: `Bond Issued: +$${(principal / 1000000).toFixed(1)}M cash added. Revenue taxed by ${Math.round(taxRate * 100)}%.`,
+        kind: "good"
+      });
+      this.processGoals();
+      return true;
+    });
+  }
+
+  paybackBondEarly() {
+    const bond = this.state.activeBond;
+    if (!bond) return false;
+    if (this.state.cash < bond.principal) {
+      emit("toast", { msg: `Not enough cash (need ${fmtMoney(bond.principal)})`, kind: "bad" });
+      return false;
+    }
+    return permitStateWrites(() => {
+      this.state.cash -= bond.principal;
+      this.state.activeBond = null;
+      emit("toast", { msg: "Bond paid off early — revenue tax removed!", kind: "good" });
+      this.processGoals();
+      return true;
+    });
   }
 
   inspectTrain(trainId) {
@@ -707,7 +746,7 @@ export class Game {
     const len = Math.hypot(bx - na.x, bz - na.z);
     if (len < 0.5) return;
     const wf = mapKey === "nyc" ? waterFraction(na.x, na.z, bx, bz) : 0;
-    const cost = trackCost(mapKey, type, len, wf);
+    const cost = trackCost(mapKey, type, len, wf, this.state);
     const valid = target && target.station && target.id !== na.id && !ms.edges[edgeKey(na.id, target.id)];
 
     const y = MAP_RENDER[mapKey].trackY + 0.15;

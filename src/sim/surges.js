@@ -79,9 +79,42 @@ export function updateSurges(state, dt) {
     const activeSurgeCount = Object.keys(ss.surges).length;
     if (activeSurgeCount < MAX_CONCURRENT_SURGES) {
       // Pick a random unbuilt node that doesn't currently have an active surge or pending strike
-      const candidateNodes = Object.values(ms.nodes).filter(
+      let candidateNodes = Object.values(ms.nodes).filter(
         (n) => !n.station && !ss.surges[n.id] && !ss.abandonedNodes[n.id]
       );
+
+      if (state.simTime < 900) {
+        const activeStations = Object.values(ms.nodes).filter((n) => n.station);
+        if (activeStations.length > 0) {
+          const nearbyCandidates = candidateNodes.filter((c) =>
+            activeStations.some((station) => {
+              const dx = c.x - station.x;
+              const dz = c.z - station.z;
+              return Math.hypot(dx, dz) <= 50;
+            })
+          );
+          if (nearbyCandidates.length > 0) {
+            candidateNodes = nearbyCandidates;
+          } else {
+            let minDistance = Infinity;
+            let closestCandidates = [];
+            for (const c of candidateNodes) {
+              for (const station of activeStations) {
+                const dist = Math.hypot(c.x - station.x, c.z - station.z);
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  closestCandidates = [c];
+                } else if (dist === minDistance) {
+                  closestCandidates.push(c);
+                }
+              }
+            }
+            if (closestCandidates.length > 0) {
+              candidateNodes = closestCandidates;
+            }
+          }
+        }
+      }
 
       if (candidateNodes.length > 0) {
         const picked = candidateNodes[Math.floor(Math.random() * candidateNodes.length)];
