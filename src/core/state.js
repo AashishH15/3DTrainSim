@@ -71,6 +71,7 @@ export function freshState(gameMode = "tycoon") {
     incomeWindow: [], // [simTime, delta] samples for $/min display
     lostWindow: [], // [simTime, count] samples for lost/min when network pressure is on
     breachTimer: 0, // sustained lost-rate breach accumulator (sim-seconds)
+    pressureStrikeCount: 0, // permanent strikes from sustained high Lost/min
     collapseReason: null, // null | "network"
     survivalTime: 0, // sim-seconds survived at collapse (score)
     cityMapsUnlocked: false,
@@ -124,6 +125,7 @@ export function loadState() {
     if (s.totalLost == null) s.totalLost = 0;
     if (!s.lostWindow) s.lostWindow = [];
     if (s.breachTimer == null) s.breachTimer = 0;
+    if (s.pressureStrikeCount == null) s.pressureStrikeCount = 0;
     if (s.collapseReason == null) s.collapseReason = null;
     if (s.survivalTime == null) s.survivalTime = 0;
     if (s.cityMapsUnlocked == null) s.cityMapsUnlocked = false;

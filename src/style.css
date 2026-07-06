@@ -118,6 +118,15 @@ body {
 .stat.stat-survival .v { color: var(--accent); }
 .stat.stat-lost.warn .v { color: var(--bad); }
 .stat.stat-lost.critical .v { color: var(--bad); animation: pulse-bad 1.2s ease-in-out infinite; }
+.stat.stat-lost.critical .k { color: #fca5a5; }
+.pressure-meter {
+  display: none; width: 4.4rem; height: 0.22rem; margin-top: 0.18rem;
+  overflow: hidden; background: rgba(224, 108, 108, 0.18); border-radius: 999px;
+}
+.pressure-meter > div {
+  width: 0; height: 100%; background: var(--bad);
+  transition: width 0.2s linear;
+}
 .stat.stat-strikes.warn .v { color: #f59e0b; }
 .stat.stat-strikes.critical .v { color: var(--bad); animation: pulse-bad 1.2s ease-in-out infinite; }
 @keyframes pulse-bad { 50% { opacity: 0.55; } }
@@ -642,4 +651,3 @@ body {
 #tool-bond.active-warning:hover {
   background: rgba(239, 68, 68, 0.15) !important;
 }
-

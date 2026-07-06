@@ -455,20 +455,52 @@ function updateNetworkPressure(state, dt) {
       });
     }
     if (state.breachTimer >= collapseGraceSec) {
-      state.gameOver = true;
-      const surgePenalty = getTotalAbandonedPenalty(state);
-      state.collapseReason = (surgePenalty >= rateThresholdPerMin * 0.6 || (state.surgeState?.abandonedCount || 0) >= 5)
-        ? "surge"
-        : "network";
-      state.survivalTime = state.simTime;
-      emit("networkCollapse");
+      const strikeCount = addNetworkPressureStrike(state);
+      state.breachTimer = 0;
+      if (strikeCount >= 5) {
+        state.gameOver = true;
+        state.collapseReason = "network";
+        state.survivalTime = state.simTime;
+        emit("networkCollapse");
+      } else {
+        emit("toast", {
+          msg: "Sustained rider losses became a permanent strike (+5 Lost/min). Stabilize before the next one.",
+          kind: "bad",
+          key: `network-pressure-strike:${state.pressureStrikeCount}`,
+        });
+      }
     }
   } else {
     state.breachTimer = Math.max(0, state.breachTimer - dt * breachDecayFactor);
   }
 }
 
-/** 0–1 progress toward network collapse (for HUD). */
+function addNetworkPressureStrike(state) {
+  if (!state.surgeState) {
+    state.surgeState = {
+      nextSurgeTime: state.simTime + 120,
+      nextVipSurgeTime: state.simTime + 900,
+      surges: {},
+      abandonedNodes: {},
+      abandonedCount: 0,
+      vipSurge: null,
+    };
+  }
+  if (!state.surgeState.abandonedNodes) state.surgeState.abandonedNodes = {};
+  state.pressureStrikeCount = (state.pressureStrikeCount || 0) + 1;
+  state.surgeState.abandonedNodes[`pressure_strike_${state.pressureStrikeCount}`] = {
+    penalty: 5,
+    delivered: 0,
+    connected: false,
+    permanent: true,
+    name: `Network pressure ${state.pressureStrikeCount}`,
+    mapKey: state.currentMap || "usa",
+  };
+  state.surgeState.abandonedCount = Object.keys(state.surgeState.abandonedNodes).length;
+  return state.surgeState.abandonedCount;
+}
+
+/** 0–1 progress toward a permanent Lost/min strike (for HUD). */
 export function breachProgress(state) {
   if (!networkPressureEnabled(state)) return 0;
   const { collapseGraceSec } = getPressureConfig(state);

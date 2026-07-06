@@ -74,7 +74,9 @@ export class Hud {
           <div class="v" id="hud-elapsed"></div><div class="k" id="hud-elapsed-label">Time elapsed</div>
         </div>
         <div class="stat stat-lost" id="hud-lost-stat" title="Riders lost per minute" hidden>
-          <div class="v" id="hud-lost"></div><div class="k" id="hud-lost-label">Lost</div>
+          <div class="v" id="hud-lost"></div>
+          <div class="k" id="hud-lost-label">Lost</div>
+          <div class="pressure-meter" id="hud-pressure-meter" aria-hidden="true"><div id="hud-pressure-fill"></div></div>
         </div>
         <div class="stat stat-strikes" id="hud-strikes-stat" title="Abandoned demand surges (5 max before collapse)" hidden>
           <div class="v" id="hud-strikes">0 / 5</div><div class="k" id="hud-strikes-label">Strikes</div>
@@ -326,6 +328,8 @@ export class Hud {
     const lostStat = document.getElementById("hud-lost-stat");
     const lostEl = document.getElementById("hud-lost");
     const lostLabel = document.getElementById("hud-lost-label");
+    const pressureMeter = document.getElementById("hud-pressure-meter");
+    const pressureFill = document.getElementById("hud-pressure-fill");
     const strikesStat = document.getElementById("hud-strikes-stat");
     const strikesEl = document.getElementById("hud-strikes");
 
@@ -335,6 +339,7 @@ export class Hud {
         lostStat.style.display = "none";
         lostStat.classList.remove("warn", "critical");
       }
+      if (pressureMeter) pressureMeter.style.display = "none";
       if (strikesStat) {
         strikesStat.hidden = true;
         strikesStat.style.display = "none";
@@ -348,20 +353,25 @@ export class Hud {
         const progress = breachProgress(s);
         const pressureCfg = getPressureConfig(s);
         const threshold = pressureCfg.rateThresholdPerMin;
-        lostLabel.textContent = "Lost / min";
+        const strikeIn = Math.max(0, pressureCfg.collapseGraceSec - s.breachTimer);
+        lostLabel.textContent = progress > 0 ? `Strike in ${fmtSimDuration(strikeIn)}` : "Lost / min";
         lostEl.textContent = fmtInt(rate);
         lostStat.title = progress > 0
-          ? `Riders lost per sim-minute (threshold ${threshold}). Collapse in ${fmtSimDuration(pressureCfg.collapseGraceSec - s.breachTimer)} if pressure continues.`
+          ? `Riders lost per sim-minute (threshold ${threshold}). Permanent strike in ${fmtSimDuration(strikeIn)} if pressure continues.`
           : `Riders lost per sim-minute (threshold ${threshold})`;
         lostStat.classList.toggle("warn", rate >= threshold * 0.5);
         lostStat.classList.toggle("critical", progress >= 0.5);
+        if (pressureMeter && pressureFill) {
+          pressureMeter.style.display = progress > 0 ? "block" : "none";
+          pressureFill.style.width = `${Math.round(progress * 100)}%`;
+        }
       }
       if (strikesStat && strikesEl) {
         strikesStat.hidden = false;
         strikesStat.style.display = "";
         const count = s.surgeState?.abandonedCount || 0;
         strikesEl.textContent = `${count} / 5`;
-        strikesStat.title = `Abandoned demand surges: ${count} of 5 max strikes before collapse`;
+        strikesStat.title = `Permanent strikes: ${count} of 5 before collapse. Demand surge strikes can be redeemed; Lost/min pressure strikes cannot.`;
         strikesStat.classList.toggle("warn", count >= 3 && count < 4);
         strikesStat.classList.toggle("critical", count >= 4);
       }
