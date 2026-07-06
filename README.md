@@ -1,5 +1,7 @@
 # Overland: A Low-Poly 3D Train Network Builder
 
+> Cannot promise your scores to remain, this is very early in development still trying to figure out its quarks.
+
 A browser-based train tycoon game built with Three.js. Design, build, and operate
 a passenger rail network across two scales:
 
