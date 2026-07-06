@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode, cityMapsUnlocked, canAffordCityMap } from "./core/config.js";
 import { freshState, loadState, saveState, clearSave, makeEdge, removeEdge } from "./core/state.js";
 import { edgeKey, nodeDist } from "./core/graph.js";
-import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, trainPurchaseCost, trainSellRefund } from "./core/economy.js";
+import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, trainPurchaseCost, trainSellRefund, trainUpgradeCost } from "./core/economy.js";
 import { stepSimulation, assignRoute, revalidateTrains } from "./sim/simulation.js";
 import { waterFraction } from "./data/nycMap.js";
 import { createRenderer, createSceneBundle, tickWater } from "./render/scene.js";
@@ -471,6 +471,22 @@ export class Game {
     });
     this.inspector.close();
     emit("toast", { msg: "Train sold (50% refund)" });
+  }
+
+  upgradeTrain(trainId, toTier) {
+    const train = this.state.trains[trainId];
+    if (!train || train.tier >= toTier) return false;
+    const cost = trainUpgradeCost(train.tier, toTier, this.state);
+    if (!this.spend(cost)) return false;
+    return permitStateWrites(() => {
+      train.tier = toTier;
+      revalidateTrains(this.state);
+      const t = TIERS[toTier];
+      emit("toast", { msg: `Train #${train.num} upgraded to ${t.short}!`, kind: "good" });
+      this.inspector.showTrain(trainId);
+      this.processGoals();
+      return true;
+    });
   }
 
   issueBond(principal, taxRate) {

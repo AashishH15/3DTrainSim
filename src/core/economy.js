@@ -43,6 +43,10 @@ export function trainSellRefund(tier, state = null) {
   return Math.round(trainPurchaseCost(tier, state) * 0.5);
 }
 
+export function trainUpgradeCost(fromTier, toTier, state = null) {
+  return trainPurchaseCost(toTier, state);
+}
+
 /** Time-only demand multiplier from elapsed sim-days. */
 export function timeGrowthFactor(growth, days) {
   if (growth.shape === "compound") {

@@ -1,5 +1,5 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, ECON, cityMapsUnlocked, canAffordCityMap } from "../core/config.js";
-import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat, trainSellRefund, costMultiplier } from "../core/economy.js";
+import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat, trainSellRefund, trainUpgradeCost, costMultiplier } from "../core/economy.js";
 import { trainsOnEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
 
@@ -203,12 +203,19 @@ export class Inspector {
       ["Operating cost", `${fmtMoney(opsCost)}/min`],
     ];
 
+    const upgradeButtons = [];
+    for (let up = train.tier + 1; up <= 3; up++) {
+      const upCost = trainUpgradeCost(train.tier, up, s);
+      upgradeButtons.push(`<button class="btn" data-upgrade="${up}">${icon("lightning")} Upgrade to ${TIERS[up].short} for ${fmtMoney(upCost)}</button>`);
+    }
+
     this.open(`
       <h3>${tier.short} Train #${train.num}</h3>
       <div class="sub">${train.map === "usa" ? "National network" : "NYC network"}</div>
       ${rows.map(([k, v]) => `<div class="row"><span class="k">${k}</span><span>${v}</span></div>`).join("")}
       <div class="actions">
         <button class="btn primary" data-act="route">${icon("route")} Set route</button>
+        ${upgradeButtons.join("")}
         <button class="btn danger" data-act="sell">${icon("coins")} Sell for ${fmtMoney(refundVal)}</button>
       </div>
     `);
@@ -218,5 +225,8 @@ export class Inspector {
       g.startRouteAssign(trainId);
     });
     this.el.querySelector('[data-act="sell"]').addEventListener("click", () => g.sellTrain(trainId));
+    this.el.querySelectorAll("[data-upgrade]").forEach((b) =>
+      b.addEventListener("click", () => g.upgradeTrain(trainId, +b.dataset.upgrade))
+    );
   }
 }
