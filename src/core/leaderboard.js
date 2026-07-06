@@ -34,13 +34,29 @@ function saveLocalMockBoard(map, entry) {
   } catch {}
 }
 
+function mergeBoardEntries(remoteEntries, localEntries) {
+  const map = new Map();
+  for (const entry of [...remoteEntries, ...localEntries]) {
+    const key = `${entry.handle}_${entry.survivedSec}`;
+    if (!map.has(key)) {
+      map.set(key, entry);
+    }
+  }
+  const merged = Array.from(map.values());
+  merged.sort((a, b) => b.survivedSec - a.survivedSec);
+  return merged.slice(0, 50);
+}
+
 export async function fetchLeaderboard(map = "usa") {
+  const localEntries = getLocalMockBoard(map);
+
   // 1. Try relative function endpoint (Netlify environment)
   try {
     const res = await fetch(`/.netlify/functions/leaderboard?map=${encodeURIComponent(map)}`);
     const contentType = res.headers.get("content-type") || "";
     if (res.ok && contentType.includes("application/json")) {
-      return await res.json();
+      const data = await res.json();
+      return { map, entries: mergeBoardEntries(data.entries || [], localEntries) };
     }
   } catch {}
 
@@ -49,12 +65,13 @@ export async function fetchLeaderboard(map = "usa") {
     const prodRes = await fetch(`${PROD_ENDPOINT}?map=${encodeURIComponent(map)}`);
     const contentType = prodRes.headers.get("content-type") || "";
     if (prodRes.ok && contentType.includes("application/json")) {
-      return await prodRes.json();
+      const data = await prodRes.json();
+      return { map, entries: mergeBoardEntries(data.entries || [], localEntries) };
     }
   } catch {}
 
   // 3. Local mock fallback (offline / standalone local dev)
-  return { map, entries: getLocalMockBoard(map) };
+  return { map, entries: localEntries };
 }
 
 export async function submitLeaderboardScore({ handle, mode = "survival", map, survivedSec, trains, passengers }) {
@@ -72,6 +89,17 @@ export async function submitLeaderboardScore({ handle, mode = "survival", map, s
     deviceId,
   };
 
+  // Always save to local localStorage so player runs are never lost locally
+  const mockEntry = {
+    handle: cleanHandle,
+    survivedSec: Math.round(survivedSec),
+    trains: Math.max(1, trains),
+    passengers: Math.max(0, passengers),
+    deviceId,
+    date: new Date().toISOString().split("T")[0],
+  };
+  saveLocalMockBoard(map, mockEntry);
+
   // 1. Try local Netlify Function endpoint
   try {
     const res = await fetch("/.netlify/functions/leaderboard", {
@@ -83,17 +111,9 @@ export async function submitLeaderboardScore({ handle, mode = "survival", map, s
     if (res.ok && contentType.includes("application/json")) {
       return await res.json();
     }
-    if (!res.ok && contentType.includes("application/json")) {
-      const errData = await res.json();
-      throw new Error(errData.error || "Submission rejected");
-    }
-  } catch (e) {
-    if (e.message && e.message !== "Failed to fetch" && !e.message.includes("NetworkError")) {
-      throw e;
-    }
-  }
+  } catch {}
 
-  // 2. Try production Netlify Function endpoint (for local dev testing)
+  // 2. Try production Netlify Function endpoint
   try {
     const prodRes = await fetch(PROD_ENDPOINT, {
       method: "POST",
@@ -104,25 +124,7 @@ export async function submitLeaderboardScore({ handle, mode = "survival", map, s
     if (prodRes.ok && contentType.includes("application/json")) {
       return await prodRes.json();
     }
-    if (!prodRes.ok && contentType.includes("application/json")) {
-      const errData = await prodRes.json();
-      throw new Error(errData.error || "Submission rejected");
-    }
-  } catch (e) {
-    if (e.message && !e.message.includes("Failed to fetch") && !e.message.includes("NetworkError")) {
-      throw e;
-    }
-  }
+  } catch {}
 
-  // 3. Save to local mock storage during offline local dev
-  const mockEntry = {
-    handle: cleanHandle,
-    survivedSec: Math.round(survivedSec),
-    trains: Math.max(1, trains),
-    passengers: Math.max(0, passengers),
-    deviceId,
-    date: new Date().toISOString().split("T")[0],
-  };
-  saveLocalMockBoard(map, mockEntry);
   return { success: true, localMock: true, entry: mockEntry };
 }
