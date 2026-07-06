@@ -27,19 +27,25 @@ let inMemoryStore = new Map();
 function getSafeStore(storeName) {
   try {
     return getStore(storeName);
-  } catch {
-    // Graceful fallback for local development without Netlify environment credentials
-    return {
-      async get(key, options) {
-        const val = inMemoryStore.get(`${storeName}:${key}`);
-        if (!val) return null;
-        if (options?.type === "json") return JSON.parse(val);
-        return val;
-      },
-      async setJSON(key, value) {
-        inMemoryStore.set(`${storeName}:${key}`, JSON.stringify(value));
-      }
-    };
+  } catch (err) {
+    console.error("getStore failed, checking environment for fallback. Error details:", err);
+    const isLocalDev = process.env.NETLIFY_DEV === "true" || !process.env.NETLIFY;
+    if (isLocalDev) {
+      console.log("Local development environment detected. Falling back to transient in-memory store.");
+      return {
+        async get(key, options) {
+          const val = inMemoryStore.get(`${storeName}:${key}`);
+          if (!val) return null;
+          if (options?.type === "json") return JSON.parse(val);
+          return val;
+        },
+        async setJSON(key, value) {
+          inMemoryStore.set(`${storeName}:${key}`, JSON.stringify(value));
+        }
+      };
+    }
+    // In production Netlify environment, rethrow the error so it fails explicitly instead of hiding the issue.
+    throw err;
   }
 }
 
