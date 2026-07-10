@@ -174,7 +174,9 @@ export function openNetworkCollapse(game) {
       <div class="sub" style="font-size:0.82rem; margin-bottom:0.35rem;">
         ${isNew
       ? `<b style="color:var(--good);">New personal best!</b>${previousSec > 0 ? ` (was ${fmtSimDuration(previousSec)})` : ""}`
-      : `Personal best · <b>${bestLabel}</b> · ${fmtSimDuration(Math.max(0, bestSec - runSec))} short of your record`}
+      : runSec === bestSec
+        ? `Matched your personal best · <b>${bestLabel}</b>`
+        : `Personal best · <b>${bestLabel}</b> · ${fmtSimDuration(bestSec - runSec)} short of your record`}
       </div>
       <div class="sub" style="font-size:0.78rem; margin-bottom:0.8rem;">
         Delivered ${fmtInt(s.totalDelivered)} passengers · Peak lost rate ${fmtInt(lostRatePerMin(s))}/min · ${fmtInt(done)}/${fmtInt(total)} badges unlocked
