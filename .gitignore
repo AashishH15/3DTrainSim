@@ -3,5 +3,6 @@ dist/
 .DS_Store
 *.local
 .agents/
+brag-output/
 ExpansionIdeas.md
 AGENTS.md
