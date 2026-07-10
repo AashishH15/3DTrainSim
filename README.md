@@ -9,6 +9,8 @@ a passenger rail network across two scales:
 - **NYC City Map** - build a commuter network through low-poly NYC landmarks
   (Statue of Liberty, Empire State Building, Times Square, Central Park...).
 
+https://github.com/user-attachments/assets/be84b52b-aa4e-4836-82bd-314ef60c97c5
+
 ## Play
 
 **Play in your browser: https://overlandgame.netlify.app/**
