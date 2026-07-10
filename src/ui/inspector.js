@@ -1,6 +1,6 @@
 import { TIERS, TRACK_TYPES, fmtMoney, fmtInt, ECON, cityMapsUnlocked, canAffordCityMap } from "../core/config.js";
-import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat, trainSellRefund, trainUpgradeCost, costMultiplier } from "../core/economy.js";
-import { trainsOnEdge } from "../core/graph.js";
+import { stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, formatDemandStat, formatCrowdingStat, trainSellRefund, trainUpgradeCost, costMultiplier, stationUpgradeCost, platformCapacity } from "../core/economy.js";
+import { trainsOnEdge, trainsUsingEdge } from "../core/graph.js";
 import { icon } from "./icons.js";
 
 export class Inspector {
@@ -15,6 +15,7 @@ export class Inspector {
     this.el?.remove();
     this.el = null;
     this.current = null;
+    this.game.clearTrackHighlight();
   }
 
   open(html) {
@@ -42,6 +43,7 @@ export class Inspector {
     const node = s.maps[mapKey].nodes[nodeId];
     if (!node) return this.close();
     this.current = { kind: "node", id: nodeId };
+    if (!isRefresh) this.game.clearTrackHighlight();
 
     const waiting = node.waiting.reduce((a, x) => a + x.count, 0);
     const onNetwork = node.unlocked || node.station;
@@ -71,6 +73,7 @@ export class Inspector {
       ["Demand", formatDemandStat(node, s)],
       node.pop ? ["Metro pop.", `${node.pop}M (rank ${node.rank})`] : null,
       node.station ? ["Platform", formatCrowdingStat(mapKey, node, s), node.crowded ? "crowded" : ""] : ["Waiting", fmtInt(waiting)],
+      node.station ? ["Platform level", `${node.capLevel ?? 0}/5 · cap ${fmtInt(platformCapacity(mapKey, node, s))}`] : null,
       ["Delivered here", fmtInt(node.servedTotal)],
       node.station ? ["Fares", `${s.maps[mapKey].fareMult.toFixed(1)}×`] : null,
     ].filter(Boolean);
@@ -83,6 +86,9 @@ export class Inspector {
     const expansionNote = mapKey === "usa" && !onNetwork
       ? `<div class="sub">Expand your network here to reach this metro — counts toward milestones.</div>`
       : "";
+    if (node.station && node.capLevel < ECON.maxCapLevel) {
+      actions.push(`<button class="btn" data-act="upcap">${icon("station")} Upgrade platform (Level ${node.capLevel}/5) · ${fmtMoney(stationUpgradeCost(mapKey, node, s))}</button>`);
+    }
     if (!node.unlocked) {
       actions.push(`<button class="btn primary" data-act="unlock">${icon("pin")} Expand network · ${fmtMoney(nodeUnlockCost(node, s))}</button>`);
     } else if (!node.station) {
@@ -111,6 +117,7 @@ export class Inspector {
 
     this.el.querySelector('[data-act="unlock"]')?.addEventListener("click", () => g.unlockNode(nodeId));
     this.el.querySelector('[data-act="station"]')?.addEventListener("click", () => g.buildStation(nodeId));
+    this.el.querySelector('[data-act="upcap"]')?.addEventListener("click", () => g.upgradeStationCapacity(nodeId));
     this.el.querySelector('[data-act="buynyc"]')?.addEventListener("click", () => {
       if (g.purchaseNycMap()) g.switchMap("nyc");
     });
@@ -126,6 +133,7 @@ export class Inspector {
     const edge = s.maps[mapKey].edges[edgeId];
     if (!edge) return this.close();
     this.current = { kind: "edge", id: edgeId };
+    if (!isRefresh) this.game.clearTrackHighlight();
 
     const ms = s.maps[mapKey];
     const tt = TRACK_TYPES[edge.type];
@@ -145,18 +153,19 @@ export class Inspector {
     }
     actions.push(`<button class="btn danger" data-act="remove">${icon("bulldoze")} Demolish, refund ${fmtMoney(bulldozeRefund(mapKey, edge, s))}</button>`);
 
-    const onTrack = trainsOnEdge(s, mapKey, edgeId);
-    const trainList = onTrack.length
-      ? onTrack.map((train) => {
+    const using = trainsUsingEdge(s, mapKey, edgeId);
+    const trainList = using.length
+      ? using.map((train) => {
           const tier = TIERS[train.tier];
           const load = train.passengers.reduce((a, x) => a + x.count, 0);
-          const along = edge.length > 0 ? Math.round((train.prog / edge.length) * 100) : 0;
+          const onThis = trainsOnEdge(s, mapKey, edgeId).includes(train);
+          const along = onThis && edge.length > 0 ? `${Math.round((train.prog / edge.length) * 100)}% along` : "on route";
           return `<button class="btn quiet train-pick" data-train="${train.id}">
             ${icon(`tier${train.tier}`)} Train #${train.num}
-            <span class="train-pick-meta">${load}/${tier.capacity} · ${along}% along</span>
+            <span class="train-pick-meta">${load}/${tier.capacity} · ${along}</span>
           </button>`;
         }).join("")
-      : `<div class="train-pick-empty">No trains on this segment right now</div>`;
+      : `<div class="train-pick-empty">No trains use this track right now</div>`;
 
     this.open(`
       <h3>Track segment</h3>
@@ -228,5 +237,6 @@ export class Inspector {
     this.el.querySelectorAll("[data-upgrade]").forEach((b) =>
       b.addEventListener("click", () => g.upgradeTrain(trainId, +b.dataset.upgrade))
     );
+    if (!isRefresh) g.setTrainHighlight(trainId);
   }
 }

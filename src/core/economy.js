@@ -124,8 +124,16 @@ export function platformCapacity(mapKey, node, state) {
     ? Math.pow(node.pop, mc.platformPop2Exp) * mc.platformPopMult
     : 0;
   const raw = mc.platformBase[mapKey] + demandTerm + popFactor;
+  const levelMult = 1 + (node.capLevel ?? 0) * 0.6; // level 4 = 3.4x base capacity
   const floor = TIERS[1].capacity * mc.minTrainMultiple;
-  return Math.round(Math.max(raw, floor));
+  return Math.round(Math.max(raw * levelMult, floor));
+}
+
+export function stationUpgradeCost(mapKey, node, state = null) {
+  const level = node.capLevel ?? 0;
+  const base = ECON.stationUpgradeBase[mapKey] * Math.pow(ECON.stationUpgradeGrowth, level);
+  const costMult = state ? costMultiplier(state) : 1;
+  return Math.round(base * costMult);
 }
 
 export function formatCrowdingStat(mapKey, node, state) {

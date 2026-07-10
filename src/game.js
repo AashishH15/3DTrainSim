@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { TIERS, TRACK_TYPES, ECON, USA_FREE_RANKS, fmtMoney, getGameMode, cityMapsUnlocked, canAffordCityMap } from "./core/config.js";
+
+import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, trainPurchaseCost, trainSellRefund, trainUpgradeCost, stationUpgradeCost } from "./core/economy.js";
 import { freshState, loadState, saveState, clearSave, makeEdge, removeEdge } from "./core/state.js";
-import { edgeKey, nodeDist } from "./core/graph.js";
-import { trackCost, stationCost, nodeUnlockCost, upgradeCost, bulldozeRefund, trainPurchaseCost, trainSellRefund, trainUpgradeCost } from "./core/economy.js";
+import { edgeKey, nodeDist, segmentPointDist } from "./core/graph.js";
 import { stepSimulation, assignRoute, revalidateTrains } from "./sim/simulation.js";
 import { waterFraction } from "./data/nycMap.js";
 import { createRenderer, createSceneBundle, tickWater } from "./render/scene.js";
@@ -385,32 +386,118 @@ export class Game {
     this.processGoals();
   }
 
+  upgradeStationCapacity(nodeId) {
+    const mapKey = this.state.currentMap;
+    const node = this.activeMapState.nodes[nodeId];
+    if (!node?.station || node.capLevel >= ECON.maxCapLevel) return;
+    const cost = stationUpgradeCost(mapKey, node, this.state);
+    if (!this.spend(cost)) return;
+    permitStateWrites(() => { node.capLevel = (node.capLevel ?? 0) + 1; });
+    this.renderers[mapKey].nodes.rebuildNode(node);
+    emit("toast", { msg: `${node.name} platform upgraded to level ${node.capLevel}/5 (${fmtMoney(cost)})`, kind: "good" });
+    this.inspector.showNode(nodeId);
+  }
+
   tryBuildTrack(aId, bId, type) {
     const mapKey = this.state.currentMap;
     const ms = this.activeMapState;
     if (aId === bId) return;
     const na = ms.nodes[aId];
     const nb = ms.nodes[bId];
-    if (!na?.station || !nb?.station) {
-      emit("toast", { msg: "Both endpoints need stations first", kind: "bad" });
-      return;
+    if (!na || !nb) return;
+
+    // Auto-connect: chain through stationed cities the line crosses.
+    const chain = this.autoConnectChain(mapKey, aId, bId);
+    let built = 0;
+    let totalCost = 0;
+    for (let i = 0; i < chain.length - 1; i++) {
+      const x = chain[i], y = chain[i + 1];
+      if (ms.edges[edgeKey(x, y)]) continue; // segment already exists; skip (and don't charge)
+      const nx = ms.nodes[x], ny = ms.nodes[y];
+      const length = nodeDist(nx, ny);
+      const wf = mapKey === "nyc" ? waterFraction(nx.x, nx.z, ny.x, ny.z) : 0;
+      const cost = trackCost(mapKey, type, length, wf, this.state);
+      if (!this.spend(cost)) {
+        // Refund previously built sub-segments of this chain so the player isn't charged for a partial line.
+        if (built > 0) this.refundChain(mapKey, chain, i);
+        return;
+      }
+      totalCost += cost;
+      makeEdge(this.state, mapKey, x, y, type);
+      built++;
     }
-    if (ms.edges[edgeKey(aId, bId)]) {
+    if (built === 0) {
       emit("toast", { msg: "These stops are already connected", kind: "bad" });
       return;
     }
-    const length = nodeDist(na, nb);
-    const wf = mapKey === "nyc" ? waterFraction(na.x, na.z, nb.x, nb.z) : 0;
-    const cost = trackCost(mapKey, type, length, wf, this.state);
-    if (!this.spend(cost)) return;
-    makeEdge(this.state, mapKey, aId, bId, type);
     this.renderers[mapKey].track.sync();
     revalidateTrains(this.state);
-    const bridge = wf > 0.02 ? ` (${Math.round(wf * 100)}% bridge)` : "";
-    emit("toast", { msg: `${TRACK_TYPES[type].name} laid for ${fmtMoney(cost)}${bridge}`, kind: "good" });
+    emit("toast", { msg: `${TRACK_TYPES[type].name} laid for ${fmtMoney(totalCost)}`, kind: "good" });
     // Chain: continue drawing from the new endpoint.
     this.trackStart = bId;
     this.processGoals();
+  }
+
+  // Return the ordered node chain A→…→B, inserting stationed cities the A→B
+  // line passes near (within a small perpendicular threshold) and between A and B.
+  autoConnectChain(mapKey, aId, bId) {
+    const ms = this.state.maps[mapKey];
+    const na = ms.nodes[aId];
+    const nb = ms.nodes[bId];
+    const threshold = MAP_RENDER[mapKey].nodeScale * 2.6; // ~3 world units on nyc
+    const inter = [];
+    for (const node of Object.values(ms.nodes)) {
+      if (!node.station || node.id === aId || node.id === bId) continue;
+      const { dist, t } = segmentPointDist(na.x, na.z, nb.x, nb.z, node.x, node.z);
+      if (t > 0.02 && t < 0.98 && dist < threshold) inter.push({ id: node.id, t });
+    }
+    inter.sort((p, q) => p.t - q.t);
+    return [aId, ...inter.map((p) => p.id), bId];
+  }
+
+  refundChain(mapKey, chain, upto) {
+    const ms = this.state.maps[mapKey];
+    for (let i = 0; i < upto; i++) {
+      const id = edgeKey(chain[i], chain[i + 1]);
+      const edge = ms.edges[id];
+      if (edge) {
+        this.state.cash += trackCost(mapKey, edge.type, edge.length, edge.waterFrac, this.state);
+        removeEdge(this.state, mapKey, id);
+      }
+    }
+  }
+
+  // Split an existing edge at the clicked 3D point and insert a transfer-only junction.
+  // Returns the new junction node id, or null if it can't be split.
+  insertJunction(edgeId, point) {
+    const mapKey = this.state.currentMap;
+    const ms = this.activeMapState;
+    const edge = ms.edges[edgeId];
+    if (!edge) return null;
+    const na = ms.nodes[edge.a];
+    const nb = ms.nodes[edge.b];
+    if (!na || !nb) return null;
+    const px = point?.x ?? (na.x + nb.x) / 2;
+    const pz = point?.z ?? (na.z + nb.z) / 2;
+    const { t } = segmentPointDist(na.x, na.z, nb.x, nb.z, px, pz);
+    const clampedT = Math.max(0.08, Math.min(0.92, t)); // keep both halves usable
+    const jx = na.x + (nb.x - na.x) * clampedT;
+    const jz = na.z + (nb.z - na.z) * clampedT;
+    const id = `jct_${mapKey}_${this.state.junctionCounter++}`;
+    const node = {
+      id, name: "Junction", x: jx, z: jz,
+      unlocked: true, station: false, junction: true,
+      waiting: [], spawnAcc: 0, servedTotal: 0, demand: 0,
+    };
+    ms.nodes[id] = node;
+    removeEdge(this.state, mapKey, edgeId);
+    makeEdge(this.state, mapKey, edge.a, id, edge.type);
+    makeEdge(this.state, mapKey, id, edge.b, edge.type);
+    this.renderers[mapKey].nodes.rebuildNode(node);
+    this.renderers[mapKey].track.sync();
+    revalidateTrains(this.state);
+    emit("toast", { msg: `Junction added — branch your line from here`, kind: "good" });
+    return id;
   }
 
   upgradeEdge(edgeId, newType) {
@@ -533,6 +620,24 @@ export class Game {
     this.inspector.showTrain(trainId);
   }
 
+  clearTrackHighlight() {
+    for (const mk of ["usa", "nyc"]) this.renderers[mk].track.clearHighlight();
+  }
+
+  setTrainHighlight(trainId) {
+    const train = this.state.trains[trainId];
+    if (!train) return;
+    const mapKey = train.map;
+    const ids = [];
+    if (train.path) {
+      for (let i = 0; i < train.path.length - 1; i++) {
+        ids.push(edgeKey(train.path[i], train.path[i + 1]));
+      }
+    }
+    this.clearTrackHighlight();
+    this.renderers[mapKey].track.highlight(ids);
+  }
+
   // ================= route assignment =================
 
   startRouteAssign(trainId) {
@@ -593,7 +698,7 @@ export class Game {
     b.controls.target.set(node.x, 0, node.z);
     b.camera.position.set(node.x, b.camera.position.y, node.z + 80);
     b.controls.update();
-    this.selectNode(nodeId);
+    this.inspector.showNode(nodeId);
   }
 
   // ================= input & picking =================
@@ -665,15 +770,45 @@ export class Game {
       while (o && !o.userData?.kind) o = o.parent;
       if (o?.userData?.kind) return { data: o.userData, point: h.point };
     }
-    // Fall back to the track-height plane (for preview lines).
+    // Forgiving fallback: snap to the nearest node/edge near the click ray on the track plane.
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -MAP_RENDER[this.state.currentMap].trackY);
     const pt = new THREE.Vector3();
-    this.raycaster.ray.intersectPlane(plane, pt);
-    return { data: null, point: pt };
+    if (!this.raycaster.ray.intersectPlane(plane, pt)) {
+      return { data: null, point: pt };
+    }
+    const camDist = b.camera.position.distanceTo(b.controls.target);
+    const radius = Math.max(3, Math.min(40, camDist * 0.04));
+    return this.snapPick(pt, radius, e);
+  }
+
+  // Distance-based fallback used when the precise raycast misses a pickable.
+  snapPick(point, radius) {
+    const mapKey = this.state.currentMap;
+    const ms = this.activeMapState;
+    let bestNode = null, bestNodeD = Infinity;
+    for (const node of Object.values(ms.nodes)) {
+      const d = Math.hypot(node.x - point.x, node.z - point.z);
+      if (d <= radius && d < bestNodeD) { bestNodeD = d; bestNode = node; }
+    }
+    let bestEdge = null, bestEdgeD = Infinity;
+    for (const edge of Object.values(ms.edges)) {
+      const na = ms.nodes[edge.a], nb = ms.nodes[edge.b];
+      if (!na || !nb) continue;
+      const { dist } = segmentPointDist(na.x, na.z, nb.x, nb.z, point.x, point.z);
+      if (dist <= radius && dist < bestEdgeD) { bestEdgeD = dist; bestEdge = edge; }
+    }
+    // Prefer a node if the click lands clearly on it; otherwise an edge on the line.
+    if (bestNode && (bestNodeD <= bestEdgeD || !bestEdge)) {
+      return { data: { kind: "node", id: bestNode.id, map: mapKey }, point };
+    }
+    if (bestEdge) {
+      return { data: { kind: "edge", id: bestEdge.id, map: mapKey }, point };
+    }
+    return { data: null, point };
   }
 
   onClick(e) {
-    const { data } = this.pick(e);
+    const { data, point } = this.pick(e);
     const mode = this.mode;
 
     if (mode === "select") {
@@ -691,9 +826,19 @@ export class Game {
 
     if (mode.startsWith("track")) {
       const type = +mode.slice(5);
-      if (data?.kind !== "node") { return; }
+      if (!data) { return; }
+      // First endpoint may be an existing track segment: split it into a junction.
+      if (data.kind === "edge" && this.trackStart === null) {
+        const jctId = this.insertJunction(data.id, point);
+        if (jctId) {
+          this.trackStart = jctId;
+          this.updateHint();
+        }
+        return;
+      }
+      if (data.kind !== "node") { return; }
       const node = this.activeMapState.nodes[data.id];
-      if (!node.station) {
+      if (!node.station && !node.junction) {
         emit("toast", { msg: `${node.name} needs a station first`, kind: "bad" });
         return;
       }

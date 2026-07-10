@@ -80,6 +80,10 @@ export const ECON = {
   // station cost scales with demand: cost = base * (1 + demand * stationDemandFactor)
   stationDemandFactor: 0.5,
   upgradeSurcharge: 0.25,              // upgrading track costs (newCost - oldCost) * (1 + this)
+  // Station platform capacity upgrades — deliberately expensive, scaling per level.
+  stationUpgradeBase: { usa: 250000, nyc: 180000 },
+  stationUpgradeGrowth: 2.4,           // each level ~2.4x the previous
+  maxCapLevel: 4,                      // levels 0..4 (5 total)
   debtLimit: -250000,                  // bankruptcy below this
   debtGraceSec: 45,                    // sim-seconds allowed below the limit before game over
   cityMapPurchasePrice: 2_000_000,     // one-time purchase for the NYC detail map

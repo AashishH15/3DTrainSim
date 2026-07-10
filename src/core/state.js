@@ -24,6 +24,7 @@ export function freshState(gameMode = "survival") {
       demand: metroDemand(m.pop),
       unlocked: m.rank <= USA_FREE_RANKS,
       station: false,
+      capLevel: 0,
       waiting: [],
       spawnAcc: 0,
       servedTotal: 0,
@@ -40,6 +41,7 @@ export function freshState(gameMode = "survival") {
       landmark: s.landmark,
       unlocked: true,
       station: false,
+      capLevel: 0,
       waiting: [],
       spawnAcc: 0,
       servedTotal: 0,
@@ -67,6 +69,7 @@ export function freshState(gameMode = "survival") {
     },
     trains: {},
     nextTrainId: 1,
+    junctionCounter: 0,
     activeBond: null,
     incomeWindow: [], // [simTime, delta] samples for $/min display
     lostWindow: [], // [simTime, count] samples for lost/min when network pressure is on
@@ -148,6 +151,7 @@ export function loadState() {
     if (s.activeBond === undefined) {
       s.activeBond = null;
     }
+    if (s.junctionCounter == null) s.junctionCounter = 0;
     for (const mk of ["usa", "nyc"]) {
       if (s.maps[mk].fareMult == null) s.maps[mk].fareMult = 1.0;
     }

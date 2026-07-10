@@ -187,13 +187,27 @@ function economyTick(state, dt) {
 
 function dropoutPass(state, mapKey, ms, dt) {
   const patienceSec = getRiderPatienceSec(state, mapKey);
+  const CROWD_GRACE_SEC = 3;
 
   for (const node of Object.values(ms.nodes)) {
     if (!node.station) continue;
     const waitingCount = node.waiting.reduce((s, g) => s + g.count, 0);
     const capacity = platformCapacity(mapKey, node, state);
+
+    // Persistent over-capacity must persist > CROWD_GRACE_SEC before riders leave.
+    const overCapacity = waitingCount > capacity;
+    if (overCapacity) {
+      if (!node.crowdPendingSince && !node.crowded) {
+        node.crowdPendingSince = state.simTime;
+      }
+    } else {
+      node.crowdPendingSince = undefined;
+    }
+    const pendingLongEnough = node.crowdPendingSince != null &&
+      (state.simTime - node.crowdPendingSince) >= CROWD_GRACE_SEC;
     const wasCrowded = !!node.crowded;
-    node.crowded = wasCrowded ? waitingCount > capacity * 0.9 : waitingCount > capacity;
+    node.crowded = wasCrowded ? (waitingCount > capacity * 0.9 || pendingLongEnough) : pendingLongEnough;
+
     if (node.crowded) {
       if (!node.crowdedWarned) {
         node.crowdedWarned = true;

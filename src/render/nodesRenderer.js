@@ -17,9 +17,10 @@ export class NodesRenderer {
   }
 
   nodeColor(node) {
+    if (node.junction) return 0xc8d0dc;
     if (this.mapKey === "usa") {
       const metro = USA_METROS.find((m) => m.rank === node.rank);
-      return metroColor(metro);
+      return metro ? metroColor(metro) : 0x8d99ae;
     }
     return 0xff8f5a;
   }
@@ -36,6 +37,7 @@ export class NodesRenderer {
   }
 
   statusOf(node) {
+    if (node.junction) return "junction";
     return node.station ? "station" : node.unlocked ? "unlocked" : "locked";
   }
 
@@ -131,6 +133,24 @@ export class NodesRenderer {
       labelOptions = { size: this.cfg.labelSize * 0.8, color: "#aab4c2", lock: true };
       label = this.tagLabel(makeLabel(node.name, { ...labelOptions, surgeTag, measureSurgeTag }));
       label.position.y = 1.6 * s;
+      group.add(label);
+    } else if (status === "junction") {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(demandR * 0.85, 0.08 * s, 6, 16),
+        new THREE.MeshLambertMaterial({ color })
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.14 * s;
+      group.add(ring);
+      const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(demandR * 0.35, demandR * 0.35, 0.2 * s, 8),
+        new THREE.MeshLambertMaterial({ color: 0xe8edf2 })
+      );
+      hub.position.y = 0.1 * s;
+      group.add(hub);
+      labelOptions = { size: this.cfg.labelSize * 0.75, color: "#c8d0dc" };
+      label = this.tagLabel(makeLabel(node.name, { ...labelOptions, surgeTag, measureSurgeTag }));
+      label.position.y = 1.5 * s;
       group.add(label);
     } else if (status === "unlocked") {
       const ring = new THREE.Mesh(

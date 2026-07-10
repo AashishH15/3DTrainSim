@@ -19,6 +19,17 @@ export function nodeDist(na, nb) {
   return Math.hypot(na.x - nb.x, na.z - nb.z);
 }
 
+// Closest point on segment A=(ax,az)→B=(bx,bz) to point P=(px,pz).
+// Returns { dist, t } where t is the projection parameter in [0,1].
+export function segmentPointDist(ax, az, bx, bz, px, pz) {
+  const dx = bx - ax, dz = bz - az;
+  const len2 = dx * dx + dz * dz || 1e-9;
+  let t = ((px - ax) * dx + (pz - az) * dz) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + dx * t, cz = az + dz * t;
+  return { dist: Math.hypot(px - cx, pz - cz), t };
+}
+
 // Adjacency: nodeId -> [{ to, edge }], filtered by tier if given.
 function adjacency(mapState, tier = null) {
   const adj = {};
@@ -106,6 +117,23 @@ export function reachableStations(mapKey, mapState, origin) {
   for (const id in dist) {
     if (id !== origin && mapState.nodes[id]?.station) {
       out.push({ id, dist: dist[id] });
+    }
+  }
+  return out;
+}
+
+/** Every train whose assigned route traverses this edge (not just currently on it). */
+export function trainsUsingEdge(state, mapKey, edgeId) {
+  if (!state.maps[mapKey]?.edges[edgeId]) return [];
+  const out = [];
+  const seen = new Set();
+  for (const train of Object.values(state.trains)) {
+    if (train.map !== mapKey || !train.path?.length) continue;
+    for (let i = 0; i < train.path.length - 1; i++) {
+      if (edgeKey(train.path[i], train.path[i + 1]) === edgeId) {
+        if (!seen.has(train.id)) { seen.add(train.id); out.push(train); }
+        break;
+      }
     }
   }
   return out;

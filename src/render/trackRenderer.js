@@ -10,6 +10,7 @@ export class TrackRenderer {
     this.bundle = bundle;
     this.state = state;
     this.meshes = {}; // edgeId -> group
+    this.highlighted = new Set();
     this.sync();
   }
 
@@ -29,6 +30,35 @@ export class TrackRenderer {
         this.bundle.trackGroup.add(g);
       }
     }
+    this._applyHighlight();
+  }
+
+  // Tint the deck mesh of every highlighted edge; restore others to base color.
+  _applyHighlight() {
+    const edges = this.state.maps[this.mapKey].edges;
+    for (const id in this.meshes) {
+      const g = this.meshes[id];
+      const deck = g.userData.deck;
+      if (!deck) continue;
+      const baseColor = TRACK_TYPES[edges[id]?.type ?? 1].color;
+      if (this.highlighted.has(id)) {
+        deck.material.color.setHex(0xffffff);
+        deck.material.emissive.setHex(0x333333);
+      } else {
+        deck.material.color.setHex(baseColor);
+        deck.material.emissive.setHex(0x000000);
+      }
+    }
+  }
+
+  highlight(edgeIds) {
+    this.highlighted = new Set(edgeIds);
+    this._applyHighlight();
+  }
+
+  clearHighlight() {
+    this.highlighted.clear();
+    this._applyHighlight();
   }
 
   buildEdge(edge) {
@@ -56,6 +86,7 @@ export class TrackRenderer {
     deck.position.y = y;
     deck.castShadow = true;
     deck.userData = group.userData;
+    group.userData.deck = deck;
     group.add(deck);
 
     // Maglev gets a center guide rail; standard gets darker ballast strip.
