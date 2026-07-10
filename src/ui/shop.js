@@ -5,6 +5,8 @@ import { formatSurvivalBest, recordSurvivalBest } from "../core/survivalBest.js"
 import { badgesSummary, evaluateSurvivalBadges } from "../core/survivalBadges.js";
 import { isOfficialRun } from "../core/integrity.js";
 import { getSavedHandle, submitLeaderboardScore } from "../core/leaderboard.js";
+import { recordRunResult, markRunLeaderboardSubmitted } from "../core/runHistory.js";
+import { saveState } from "../core/state.js";
 import { openLeaderboardModal } from "./leaderboardModal.js";
 import { icon } from "./icons.js";
 import { shareModalActions, bindShareAction } from "./share.js";
@@ -103,10 +105,12 @@ export function openShop(game) {
 }
 
 export function openGameOver(game) {
-  if (game.state.collapseReason === "network") {
+  if (game.state.collapseReason === "network" || game.state.collapseReason === "surge") {
     openNetworkCollapse(game);
     return;
   }
+  recordRunResult(game.state);
+  saveState(game.state);
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
@@ -133,6 +137,8 @@ export function openGameOver(game) {
 export function openNetworkCollapse(game) {
   const s = game.state;
   evaluateSurvivalBadges(s);
+  const record = recordRunResult(s);
+  saveState(s);
   const runSec = s.survivalTime || displaySimTime(s);
   const { isNew, bestSec, previousSec } = recordSurvivalBest(runSec);
   const { done, total } = badgesSummary();
@@ -222,6 +228,7 @@ export function openNetworkCollapse(game) {
           trains: Object.keys(s.trains || {}).length,
           passengers: s.totalDelivered,
         });
+        markRunLeaderboardSubmitted(record.id);
         msgEl.style.color = "var(--good)";
         msgEl.textContent = "Score submitted to Global Leaderboard!";
         game.hud.toast("Leaderboard score submitted!", "good");

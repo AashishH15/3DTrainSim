@@ -241,6 +241,23 @@ export function captureNetworkSnapshot(game, mapKey = game.state.currentMap) {
   return { dataUrl: canvas.toDataURL("image/png"), layout };
 }
 
+export function buildShareStatsFromRecord(record) {
+  const timeSec = record.survival ? record.survivalTime : record.simTime;
+  return {
+    headline: record.officialRun ? record.headline : "Unofficial run",
+    modeName: record.modeName,
+    mapName: mapLabel(record.mapKey),
+    official: record.officialRun,
+    timeLabel: record.survival ? "Survived" : "Time elapsed",
+    time: fmtSimDuration(timeSec),
+    trains: fmtInt(record.trainCount),
+    passengers: fmtInt(record.totalDelivered),
+    cash: fmtMoney(record.cash),
+    earned: fmtMoney(record.totalRevenue),
+    survival: record.survival,
+  };
+}
+
 export function buildShareStats(game, { headline = null, elapsedSec = null } = {}) {
   const s = game.state;
   const survival = isSurvivalMode(s);
@@ -272,6 +289,82 @@ function loadImage(url) {
     img.onerror = reject;
     img.src = url;
   });
+}
+
+export async function buildStatsOnlyShareCard(stats) {
+  const mapW = CARD_W;
+  const mapH = Math.round(CARD_W * 0.35);
+  const cardH = mapH + STATS_H;
+  const layout = { mapW, mapH, cardH };
+  const canvas = document.createElement("canvas");
+  canvas.width = mapW;
+  canvas.height = cardH;
+  const ctx = canvas.getContext("2d");
+
+  const grad = ctx.createLinearGradient(0, 0, mapW, mapH);
+  grad.addColorStop(0, "#1a2433");
+  grad.addColorStop(1, "#10151d");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, mapW, mapH);
+
+  ctx.fillStyle = "rgba(42, 109, 181, 0.15)";
+  ctx.font = `700 ${48 * CAPTURE_SCALE / 2}px ${FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Overland", mapW / 2, mapH / 2 - 20);
+  ctx.fillStyle = "#6b7788";
+  ctx.font = `600 ${22 * CAPTURE_SCALE / 2}px ${FONT}`;
+  ctx.fillText(stats.mapName, mapW / 2, mapH / 2 + 28);
+
+  const panelY = mapH;
+  ctx.fillStyle = "#1a212c";
+  ctx.fillRect(0, panelY, mapW, cardH - panelY);
+  ctx.fillStyle = "#2a6db5";
+  ctx.fillRect(0, panelY, mapW, 4);
+
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#edf1f6";
+  ctx.font = `700 34px ${FONT}`;
+  ctx.fillText("Overland", 36, panelY + 24);
+
+  ctx.fillStyle = "#97a3b4";
+  ctx.font = `600 22px ${FONT}`;
+  const modeLine = stats.official
+    ? `${stats.headline} · ${stats.modeName}`
+    : `${stats.headline} · ${stats.modeName} · edited stats`;
+  ctx.fillText(modeLine, 36, panelY + 68);
+
+  ctx.fillStyle = "#6b7788";
+  ctx.font = `500 18px ${FONT}`;
+  ctx.fillText(stats.mapName, 36, panelY + 98);
+
+  const statY = panelY + 138;
+  const cols = [
+    { label: stats.timeLabel, value: stats.time },
+    { label: "Trains", value: stats.trains },
+    { label: "Passengers", value: stats.passengers },
+    { label: "Cash", value: stats.cash },
+    { label: "Total earned", value: stats.earned },
+  ];
+  const colW = (mapW - 72) / cols.length;
+  cols.forEach((col, i) => {
+    const x = 36 + i * colW;
+    ctx.fillStyle = "#6b7788";
+    ctx.font = `600 14px ${FONT}`;
+    ctx.fillText(col.label.toUpperCase(), x, statY);
+    ctx.fillStyle = "#edf1f6";
+    ctx.font = `700 26px ${FONT}`;
+    ctx.fillText(col.value, x, statY + 22);
+  });
+
+  ctx.fillStyle = "#6b7788";
+  ctx.font = `500 16px ${FONT}`;
+  ctx.textAlign = "right";
+  ctx.fillText(SITE_URL.replace("https://", ""), mapW - 36, cardH - 28);
+  ctx.textAlign = "left";
+
+  return { canvas, layout };
 }
 
 export async function buildShareCardCanvas(mapDataUrl, stats, layout) {
@@ -386,6 +479,74 @@ async function shareImage(blob, stats) {
 
 function shareButton(label, primary = false) {
   return `<button class="btn ${primary ? "primary" : ""}" type="button" data-share-act="${label.toLowerCase().replace(/\s+/g, "-")}">${label}</button>`;
+}
+
+/** Share modal for a saved run record (stats card, no live map snapshot). */
+export async function openShareModalFromRecord(game, record) {
+  if (document.getElementById("share-modal-backdrop")) return;
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.id = "share-modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal share-modal">
+      <h2>${icon("share")} Share your run</h2>
+      <div class="sub">Past run from <b>${mapLabel(record.mapKey)}</b> · ${record.outcomeLabel}</div>
+      <div class="share-preview-wrap">
+        <div class="share-loading">Building share card…</div>
+      </div>
+      <div class="modal-footer share-footer" hidden>
+        ${shareButton("Share image", true)}
+        ${shareButton("Download PNG")}
+        ${shareButton("Copy stats")}
+        <button class="btn quiet" type="button" data-share-act="close">Close</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("hud").appendChild(backdrop);
+
+  const wrap = backdrop.querySelector(".share-preview-wrap");
+  const footer = backdrop.querySelector(".share-footer");
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  backdrop.querySelector('[data-share-act="close"]')?.addEventListener("click", close);
+
+  let cardCanvas = null;
+  let stats = null;
+
+  try {
+    stats = buildShareStatsFromRecord(record);
+    const built = await buildStatsOnlyShareCard(stats);
+    cardCanvas = built.canvas;
+    wrap.innerHTML = `<img class="share-preview" alt="Share preview" src="${cardCanvas.toDataURL("image/png")}" />`;
+    footer.hidden = false;
+  } catch (e) {
+    wrap.innerHTML = `<div class="share-loading share-error">Could not build share card. Try again.</div>`;
+    console.warn("share card from record failed", e);
+    return;
+  }
+
+  backdrop.querySelector('[data-share-act="share-image"]')?.addEventListener("click", async () => {
+    const blob = await canvasToBlob(cardCanvas);
+    const result = await shareImage(blob, stats);
+    if (result === "shared") game.hud.toast("Shared!", "good");
+    else if (result === "downloaded") game.hud.toast("Image downloaded", "good");
+  });
+
+  backdrop.querySelector('[data-share-act="download-png"]')?.addEventListener("click", async () => {
+    const blob = await canvasToBlob(cardCanvas);
+    await downloadBlob(blob, "overland-run.png");
+    game.hud.toast("Image downloaded", "good");
+  });
+
+  backdrop.querySelector('[data-share-act="copy-stats"]')?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(shareSummary(stats));
+      game.hud.toast("Stats copied", "good");
+    } catch {
+      game.hud.toast("Could not copy stats", "bad");
+    }
+  });
 }
 
 /** Open share preview modal; generates card from current map + stats. */

@@ -100,6 +100,7 @@ export class Hud {
         <button class="btn quiet small" id="hud-goals" title="Milestones">${icon("medal")}</button>
         <button class="btn quiet small" id="hud-help" title="How to play">${icon("info")}</button>
         <button class="btn quiet small" id="hud-leaderboard" title="Global Survival Leaderboard">${icon("trophy")}</button>
+        <button class="btn quiet small" id="hud-history" title="Past runs">${icon("history")}</button>
         <button class="btn quiet small danger" id="hud-newgame" title="Start over">${icon("restart")}</button>
       </div>
     `;
@@ -121,6 +122,7 @@ export class Hud {
     el.querySelector("#hud-share").addEventListener("click", () => this.game.openShare());
     el.querySelector("#hud-goals").addEventListener("click", () => this.game.openGoals());
     el.querySelector("#hud-leaderboard").addEventListener("click", () => this.game.openLeaderboard());
+    el.querySelector("#hud-history").addEventListener("click", () => this.game.openRunHistory());
     el.querySelector("#hud-help").addEventListener("click", () => this.game.openIntro());
     el.querySelector("#hud-newgame").addEventListener("click", () => {
       if (confirm("Start a new game? Current progress will be erased.")) this.game.newGame();

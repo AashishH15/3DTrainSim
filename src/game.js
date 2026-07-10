@@ -20,6 +20,7 @@ import { openGoals, openVictory, syncGoalProgress } from "./ui/goals.js";
 import { openNetworkOverview } from "./ui/overview.js";
 import { openShareModal, shareModalActions, bindShareAction } from "./ui/share.js";
 import { openLeaderboardModal } from "./ui/leaderboardModal.js";
+import { openRunHistoryModal } from "./ui/runHistoryModal.js";
 import { evaluateNewGoals } from "./core/goals.js";
 import { evaluateSurvivalBadges } from "./core/survivalBadges.js";
 import { guardStateIntegrity, permitStateWrites } from "./core/integrity.js";
@@ -127,6 +128,7 @@ export class Game {
   openOverview() { openNetworkOverview(this); }
   openShare(opts) { openShareModal(this, opts); }
   openLeaderboard(map) { openLeaderboardModal(this, map); }
+  openRunHistory() { openRunHistoryModal(this); }
 
   reportBug() {
     const s = this.state;

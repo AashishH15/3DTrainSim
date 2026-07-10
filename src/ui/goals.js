@@ -21,6 +21,8 @@ import { formatSurvivalBest } from "../core/survivalBest.js";
 import { fmtInt, getGameMode } from "../core/config.js";
 import { icon } from "./icons.js";
 import { shareModalActions, bindShareAction } from "./share.js";
+import { recordRunResult } from "../core/runHistory.js";
+import { saveState } from "../core/state.js";
 
 function badgeStatusLabel(badge, state, unlocked) {
   if (unlocked.has(badge.id)) {
@@ -139,6 +141,8 @@ function openSurvivalBadges(game) {
 
 export function openVictory(game, goal) {
   const s = game.state;
+  recordRunResult(s, { victoryGoal: goal.title });
+  saveState(s);
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `

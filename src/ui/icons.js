@@ -29,6 +29,7 @@ import trophy from "@phosphor-icons/core/assets/bold/trophy-bold.svg?raw";
 import warning from "@phosphor-icons/core/assets/bold/warning-bold.svg?raw";
 import sparkle from "@phosphor-icons/core/assets/bold/sparkle-bold.svg?raw";
 import flame from "@phosphor-icons/core/assets/bold/flame-bold.svg?raw";
+import clockCounterClockwise from "@phosphor-icons/core/assets/bold/clock-counter-clockwise-bold.svg?raw";
 
 const SVGS = {
   github: githubLogo,
@@ -61,6 +62,7 @@ const SVGS = {
   warning,
   sparkle,
   flame,
+  history: clockCounterClockwise,
 };
 
 // Returns inline-SVG markup wrapped in a sizing span. Color follows currentColor.
