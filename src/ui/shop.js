@@ -254,7 +254,7 @@ export function openIntro(game, { firstRun = false } = {}) {
   backdrop.innerHTML = `
     <div class="modal" style="width:min(34rem,92vw);">
       <h2>${icon("train")} Overland</h2>
-      <div class="sub">Build a profitable passenger rail network across the USA and New York City. \n Cannot promise your scores to remain, this is very early in development still trying to figure out its quarks.</div>
+      <div class="sub">Build a profitable passenger rail network across the USA and New York City. \n Cannot promise your scores to remain, this is very early in development still trying to figure out its quirks.</div>
       <div class="steps">
         <div class="step">${icon("station")}
           <div><h4>1 · Build stations</h4>
