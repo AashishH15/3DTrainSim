@@ -163,3 +163,7 @@ use that environment; only GitHub’s publish step does.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
