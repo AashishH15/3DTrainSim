@@ -147,7 +147,7 @@ export const GAME_MODES = {
   survival: {
     id: "survival",
     name: "Survival",
-    tagline: "Scored leaderboard run",
+    tagline: "Survival — scored leaderboard run",
     blurb: "Harder mode with demand surges, Lost/min pressure, badges, and the global leaderboard. Survive as long as you can.",
     goals: false,
     bankruptcy: false,
