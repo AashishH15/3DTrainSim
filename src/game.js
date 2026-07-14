@@ -45,7 +45,7 @@ export class Game {
     this.bundles = {
       usa: createSceneBundle(this.renderer, {
         background: 0x1a2b3f, fogNear: 400, fogFar: 1200,
-        cameraPos: new THREE.Vector3(0, 230, 150), target: new THREE.Vector3(0, 0, -10),
+        cameraPos: new THREE.Vector3(0, 150, 98), target: new THREE.Vector3(0, 0, -10),
         minDist: 30, maxDist: 520, shadowExtent: 300,
       }),
       nyc: createSceneBundle(this.renderer, {
@@ -719,7 +719,7 @@ export class Game {
     el.addEventListener("pointerup", (e) => {
       if (e.pointerType === "touch") this.touchPointers = Math.max(0, this.touchPointers - 1);
       if (!downPos || e.pointerId !== downPointer) return;
-      const slack = tapSlack();
+      const slack = tapSlack() + 2;
       const moved = Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]);
       downPos = null;
       downPointer = null;
